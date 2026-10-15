@@ -1,0 +1,138 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: #eef3f9;
+  --color-foreground: #1b2430;
+  --color-card: #ffffff;
+  --color-card-foreground: #1b2430;
+  --color-primary: #2f6fed;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #e8eef8;
+  --color-secondary-foreground: #1b2430;
+  --color-muted: #f4f7fb;
+  --color-muted-foreground: #5b6b80;
+  --color-accent: #e8f0fe;
+  --color-accent-foreground: #2f6fed;
+  --color-border: #dde5f0;
+  --color-input: #e2eaf3;
+  --color-ring: #2f6fed;
+  --color-sidebar: #f7f9fc;
+  --color-sidebar-foreground: #3d4d63;
+  --color-destructive: #e11d48;
+  --color-destructive-foreground: #ffffff;
+
+  --color-high: #e11d48;
+  --color-high-soft: #fff1f2;
+  --color-medium: #d97706;
+  --color-medium-soft: #fffbeb;
+  --color-low: #059669;
+  --color-low-soft: #ecfdf5;
+
+  --color-finding-caries: #e11d48;
+  --color-finding-deep: #f43f5e;
+  --color-finding-impacted: #7c3aed;
+  --color-finding-periapical: #8b5cf6;
+  --color-finding-gingivitis: #7c3aed;
+  --color-finding-plaque: #d97706;
+  --color-finding-fracture: #059669;
+  --color-finding-ulcer: #a855f7;
+  --color-finding-periodontitis: #8b5cf6;
+  --color-finding-crown: #f59e0b;
+  --color-finding-filling: #22c55e;
+  --color-finding-abrasion: #f97316;
+  --color-finding-kanal: #0ea5e9;
+  --color-finding-unknown: #64748b;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+
+  --shadow-card:
+    0 0 0 1px rgba(27, 36, 48, 0.04),
+    0 1px 2px rgba(27, 36, 48, 0.04),
+    0 10px 28px rgba(27, 36, 48, 0.05);
+  --shadow-toolbar:
+    0 0 0 1px rgba(27, 36, 48, 0.06),
+    0 1px 2px rgba(27, 36, 48, 0.04);
+
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    min-height: 100dvh;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+.card-surface {
+  background: var(--color-card);
+  box-shadow: var(--shadow-card);
+}
+
+.toolbar-chip {
+  box-shadow: var(--shadow-toolbar);
+}
+
+@keyframes finding-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.finding-card-in {
+  animation: finding-card-in 180ms ease-out;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--color-foreground) 16%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

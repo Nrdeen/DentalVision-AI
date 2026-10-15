@@ -1,0 +1,44 @@
+# Dependencies
+node_modules
+
+# Data and models (datasets)
+data/
+models/
+weights/
+*.pt
+runs/
+artifacts/
+
+# Debug and temporary files
+qa_*.py
+qa_*.json
+debug_*.jpg
+debug_*.png
+debug_*.md
+*.part
+
+# AI assistant files
+.agents/
+.claude/
+skills-lock.json
+
+# Screenshots and attachments
+screenshots/
+attachments/
+
+# Database
+migrations/
+
+# Environment and build
+.env
+.env.local
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

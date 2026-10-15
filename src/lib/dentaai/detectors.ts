@@ -1,0 +1,123 @@
+import type { Finding } from "./types";
+
+/** Demo boxes only — live X-ray analysis goes through /api/xray-infer + best.pt. */
+export function detectXray(_image?: string): Finding[] {
+  return [
+    {
+      id: "x-16",
+      key: "caries",
+      confidence: 0.82,
+      tooth: "16",
+      positionKey: "upperRight",
+      severity: "high",
+      descriptionKey: "cariesDesc",
+      bbox: [0.27, 0.3, 0.37, 0.48],
+      colorVar: "--color-finding-caries", source: "xray",
+    },
+    {
+      id: "x-27",
+      key: "deepCaries",
+      confidence: 0.76,
+      tooth: "27",
+      positionKey: "upperLeft",
+      severity: "high",
+      descriptionKey: "deepCariesDesc",
+      bbox: [0.57, 0.28, 0.67, 0.46],
+      colorVar: "--color-finding-deep", source: "xray",
+    },
+    {
+      id: "x-38",
+      key: "impacted",
+      confidence: 0.69,
+      tooth: "38",
+      positionKey: "lowerLeft",
+      severity: "medium",
+      descriptionKey: "impactedDesc",
+      bbox: [0.16, 0.56, 0.28, 0.78],
+      colorVar: "--color-finding-impacted", source: "xray",
+    },
+    {
+      id: "x-46",
+      key: "periapical",
+      confidence: 0.91,
+      tooth: "46",
+      positionKey: "lowerRight",
+      severity: "high",
+      descriptionKey: "periapicalDesc",
+      bbox: [0.66, 0.56, 0.77, 0.78],
+      colorVar: "--color-finding-periapical", source: "xray",
+    },
+  ];
+}
+
+/** Placeholder intraoral detector (YOLOv8s / YOLOv11s). */
+export function detectIntraoral(_image?: string): Finding[] {
+  return [
+    {
+      id: "i-16",
+      key: "earlyCaries",
+      confidence: 0.87,
+      tooth: "16",
+      positionKey: "upperRightMolar",
+      severity: "high",
+      descriptionKey: "earlyCariesDesc",
+      bbox: [0.1, 0.26, 0.22, 0.44],
+      colorVar: "--color-finding-caries", source: "intraoral",
+    },
+    {
+      id: "i-plq",
+      key: "plaque",
+      confidence: 0.81,
+      tooth: "11, 21",
+      positionKey: "upperFront",
+      severity: "high",
+      descriptionKey: "plaqueDesc",
+      bbox: [0.36, 0.28, 0.48, 0.46],
+      colorVar: "--color-finding-plaque", source: "intraoral",
+    },
+    {
+      id: "i-gin-u",
+      key: "gingivitis",
+      confidence: 0.74,
+      tooth: "-",
+      positionKey: "upperGumRight",
+      severity: "medium",
+      descriptionKey: "gingivitisDesc",
+      bbox: [0.52, 0.18, 0.66, 0.34],
+      colorVar: "--color-finding-gingivitis", source: "intraoral",
+    },
+    {
+      id: "i-gin-l",
+      key: "gingivitis",
+      confidence: 0.74,
+      tooth: "-",
+      positionKey: "lowerFront",
+      severity: "medium",
+      descriptionKey: "gingivitisLowerDesc",
+      bbox: [0.38, 0.6, 0.54, 0.78],
+      colorVar: "--color-finding-gingivitis", source: "intraoral",
+    },
+    {
+      id: "i-36",
+      key: "fracture",
+      confidence: 0.58,
+      tooth: "36",
+      positionKey: "lowerLeftMolar",
+      severity: "low",
+      descriptionKey: "fractureDesc",
+      bbox: [0.62, 0.56, 0.74, 0.74],
+      colorVar: "--color-finding-fracture", source: "intraoral",
+    },
+    {
+      id: "i-ulc",
+      key: "ulcer",
+      confidence: 0.67,
+      tooth: "-",
+      positionKey: "gumRight",
+      severity: "medium",
+      descriptionKey: "ulcerDesc",
+      bbox: [0.72, 0.22, 0.84, 0.36],
+      colorVar: "--color-finding-ulcer", source: "intraoral",
+    },
+  ];
+}
