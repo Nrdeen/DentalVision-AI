@@ -1,0 +1,170 @@
+"""Train OralXrays-9 specialists that have a published 90+ mAP50.
+
+Default queue: implant -> restorations -> missing -> impaction.
+Decay and apical periodontitis are skipped unless --include-weak.
+
+This script starts GPU/CPU training as soon as it is invoked. Do not run it
+until the user explicitly asks to start training.
+
+    python scripts/train-oralxrays-specialists.py
+    python scripts/train-oralxrays-specialists.py --only implant
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+SPEC_ROOT = ROOT / "data" / "xray" / "specialists" / "oralxrays"
+WEIGHT_DIR = ROOT / "models" / "xray" / "specialists"
+
+QUEUE = (
+    ("implant", "implant.yaml"),
+    ("restorations", "restorations.yaml"),
+    ("missing", "missing.yaml"),
+    ("impaction", "impaction.yaml"),
+)
+WEAK = (
+    ("caries", "caries.yaml"),
+    ("periapical", "periapical.yaml"),
+)
+
+
+def is_oom(exc: BaseException) -> bool:
+    text = f"{type(exc).__name__}: {exc}".lower()
+    return "out of memory" in text or "cuda error: out of memory" in text
+
+
+def train_one(
+    spec: str,
+    yaml_name: str,
+    model: str,
+    epochs: int,
+    imgsz: int,
+    batch: int,
+    workers: int,
+    device: str,
+    patience: int,
+) -> int:
+    data = SPEC_ROOT / spec / yaml_name
+    if not data.is_file():
+        print(f"[FATAL] missing {data}")
+        print("        prepare first: python scripts/prepare-oralxrays9.py")
+        return 2
+
+    try:
+        import torch
+        from ultralytics import YOLO
+    except ImportError as exc:
+        print(f"[FATAL] missing dependency: {exc}")
+        return 2
+
+    if device != "cpu" and not torch.cuda.is_available():
+        print("[WARN] CUDA unavailable -> device=cpu")
+        device = "cpu"
+
+    attempts = [
+        {"imgsz": imgsz, "batch": batch},
+        {"imgsz": imgsz, "batch": 1},
+        {"imgsz": 512, "batch": 1},
+    ]
+    seen: set[tuple[int, int]] = set()
+    ordered = []
+    for a in attempts:
+        key = (a["imgsz"], a["batch"])
+        if key not in seen:
+            seen.add(key)
+            ordered.append(a)
+
+    out_name = f"oralxrays-{spec}"
+    for i, cfg in enumerate(ordered, start=1):
+        print("\n" + "=" * 60)
+        print(f"[INFO] {spec} attempt {i}/{len(ordered)} imgsz={cfg['imgsz']} batch={cfg['batch']}")
+        print("=" * 60)
+        try:
+            yolo = YOLO(model)
+            yolo.train(
+                data=str(data),
+                epochs=epochs,
+                imgsz=cfg["imgsz"],
+                batch=cfg["batch"],
+                device=device,
+                workers=workers,
+                patience=patience,
+                project=str(ROOT / "runs" / "xray-oralxrays"),
+                name=out_name,
+                exist_ok=True,
+            )
+            best = ROOT / "runs" / "xray-oralxrays" / out_name / "weights" / "best.pt"
+            if best.is_file():
+                WEIGHT_DIR.mkdir(parents=True, exist_ok=True)
+                dest = WEIGHT_DIR / f"{spec}.pt"
+                dest.write_bytes(best.read_bytes())
+                print(f"[OK] copied {best} -> {dest}")
+            return 0
+        except BaseException as exc:  # noqa: BLE001
+            if is_oom(exc) and i < len(ordered):
+                print(f"[FAIL] CUDA OOM at imgsz={cfg['imgsz']} batch={cfg['batch']}")
+                try:
+                    torch.cuda.empty_cache()
+                except Exception:
+                    pass
+                continue
+            print(f"[FAIL] {spec}: {type(exc).__name__}: {exc}")
+            return 1
+    return 1
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--model", default="yolo11n.pt")
+    ap.add_argument("--epochs", type=int, default=80)
+    ap.add_argument("--imgsz", type=int, default=640)
+    ap.add_argument("--batch", type=int, default=2)
+    ap.add_argument("--workers", type=int, default=2)
+    ap.add_argument("--device", default="0")
+    ap.add_argument("--patience", type=int, default=15)
+    ap.add_argument("--only", default="", help="comma-separated specialist ids")
+    ap.add_argument(
+        "--include-weak",
+        action="store_true",
+        help="also train Decay and Apical Periodontitis (published mAP50 < 90)",
+    )
+    args = ap.parse_args()
+
+    queue = list(QUEUE)
+    if args.include_weak:
+        queue.extend(WEAK)
+    if args.only:
+        wanted = {s.strip() for s in args.only.split(",") if s.strip()}
+        queue = [item for item in queue if item[0] in wanted]
+        if not queue:
+            print(f"[FATAL] --only did not match any specialist: {wanted}")
+            return 2
+
+    print("[INFO] OralXrays-9 training queue:", ", ".join(s for s, _ in queue))
+    print("[INFO] Decay / apical are withheld from this queue unless --include-weak")
+    for spec, yaml_name in queue:
+        code = train_one(
+            spec,
+            yaml_name,
+            args.model,
+            args.epochs,
+            args.imgsz,
+            args.batch,
+            args.workers,
+            args.device,
+            args.patience,
+        )
+        if code != 0:
+            return code
+    print("\n[OK] all queued specialists finished")
+    print("     enable a class in src/lib/dentaai/ensemble.ts only after YOUR val mAP50 >= 90")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    raise SystemExit(main())

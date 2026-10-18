@@ -10,6 +10,13 @@ export function normalizeLabel(key: string, labelFallback = ""): string {
   if (raw.includes("ulcer") || raw.includes("ülser") || raw.includes("ulser")) return "ulcer";
   if (raw.includes("fracture") || raw.includes("kırık") || raw.includes("kirik")) return "fracture";
   if (raw.includes("kanal") || raw.includes("rootcanal") || raw.includes("root canal")) return "rootCanal";
+  if (raw.includes("missing") || raw.includes("eksik")) return "missingTooth";
+  if (raw.includes("implant")) return "implant";
+  if (raw.includes("bridge") || raw.includes("köprü") || raw.includes("kopru")) return "bridge";
+  if (raw.includes("crown") || raw.includes("kuron")) return "crown";
+  if (raw.includes("filling") || raw.includes("dolgu")) return "filling";
+  if (raw.includes("boneloss") || raw.includes("bone loss") || raw.includes("kemik")) return "boneLoss";
+  if (raw.includes("retained") || raw.includes("kök parç")) return "retainedRoot";
   return key.toLowerCase();
 }
 
@@ -22,6 +29,13 @@ const PROBLEM_KEYS: Record<string, string> = {
   ulcer: "ulcer",
   fracture: "fracture",
   rootCanal: "rootCanal",
+  missingTooth: "missingTooth",
+  implant: "implant",
+  bridge: "bridge",
+  crown: "crown",
+  filling: "filling",
+  boneLoss: "boneLoss",
+  retainedRoot: "retainedRoot",
 };
 
 // Findings that describe the absence of disease (not a problem) and must never be

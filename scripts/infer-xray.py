@@ -28,8 +28,11 @@ for _stream in ("stdout", "stderr"):
 
 ROOT = Path(__file__).resolve().parent.parent
 MAX_BODY = 25 * 1024 * 1024
-_MODEL = None
+_MODELS: dict[str, Any] = {}
 _WEIGHTS: Path | None = None
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from xray_taxonomy import SPECIALIST_WEIGHTS, route_class, should_emit  # noqa: E402
 
 
 def resolve_weights() -> Path:
@@ -58,25 +61,47 @@ def resolve_weights() -> Path:
     )
 
 
-def load_model():
-    global _MODEL, _WEIGHTS
-    if _MODEL is not None:
-        return _MODEL
+def load_models() -> dict[str, Any]:
+    global _MODELS, _WEIGHTS
+    if _MODELS:
+        return _MODELS
     try:
         import torch
         from ultralytics import YOLO
     except ImportError as exc:
         raise RuntimeError(f"missing dependency: {exc}") from exc
 
-    _WEIGHTS = resolve_weights()
     device = "0" if torch.cuda.is_available() else "cpu"
-    print(f"[INFO] loading {_WEIGHTS} on device={device}", flush=True)
-    _MODEL = YOLO(str(_WEIGHTS))
+    specialists = {
+        sid: path for sid, path in SPECIALIST_WEIGHTS.items() if path.is_file()
+    }
+    if specialists:
+        print(f"[INFO] loading {len(specialists)} specialist weights on device={device}", flush=True)
+        for sid, path in specialists.items():
+            print(f"[INFO]   {sid}: {path}", flush=True)
+            model = YOLO(str(path))
+            try:
+                model.to(device)
+            except Exception:
+                pass
+            _MODELS[sid] = model
+        _WEIGHTS = next(iter(specialists.values()))
+        return _MODELS
+
+    _WEIGHTS = resolve_weights()
+    print(f"[INFO] no specialist checkpoints yet; loading {_WEIGHTS} on device={device}", flush=True)
+    model = YOLO(str(_WEIGHTS))
     try:
-        _MODEL.to(device)
+        model.to(device)
     except Exception:
         pass
-    return _MODEL
+    _MODELS["legacy"] = model
+    return _MODELS
+
+
+def load_model():
+    models = load_models()
+    return next(iter(models.values()))
 
 
 def decode_image(image: str) -> Any:
@@ -102,40 +127,58 @@ def decode_image(image: str) -> Any:
     return np.array(img)
 
 
-def predict(image: str, conf: float = 0.25) -> dict[str, Any]:
-    model = load_model()
-    arr = decode_image(image)
-    results = model.predict(source=arr, imgsz=640, conf=conf, verbose=False)
+def _collect(model: Any, arr: Any, conf: float) -> list[dict[str, Any]]:
     detections: list[dict[str, Any]] = []
-    if results:
-        r0 = results[0]
-        names = r0.names if isinstance(r0.names, dict) else {i: n for i, n in enumerate(r0.names)}
-        boxes = r0.boxes
-        if boxes is not None and len(boxes) > 0:
-            xyxyn = boxes.xyxyn.cpu().numpy()
-            confs = boxes.conf.cpu().numpy()
-            clss = boxes.cls.cpu().numpy()
-            for i in range(len(boxes)):
-                cls_id = int(clss[i])
-                x1, y1, x2, y2 = (float(v) for v in xyxyn[i])
-                detections.append(
-                    {
-                        "cls": cls_id,
-                        "name": str(names.get(cls_id, cls_id)),
-                        "conf": float(confs[i]),
-                        "xyxyn": [
-                            max(0.0, min(1.0, x1)),
-                            max(0.0, min(1.0, y1)),
-                            max(0.0, min(1.0, x2)),
-                            max(0.0, min(1.0, y2)),
-                        ],
-                    }
-                )
+    results = model.predict(source=arr, imgsz=640, conf=conf, verbose=False)
+    if not results:
+        return detections
+    r0 = results[0]
+    names = r0.names if isinstance(r0.names, dict) else {i: n for i, n in enumerate(r0.names)}
+    boxes = r0.boxes
+    if boxes is None or len(boxes) == 0:
+        return detections
+    xyxyn = boxes.xyxyn.cpu().numpy()
+    confs = boxes.conf.cpu().numpy()
+    clss = boxes.cls.cpu().numpy()
+    for i in range(len(boxes)):
+        cls_id = int(clss[i])
+        x1, y1, x2, y2 = (float(v) for v in xyxyn[i])
+        name = str(names.get(cls_id, cls_id))
+        score = float(confs[i])
+        routed = route_class(cls_id, name)
+        detections.append(
+            {
+                "cls": cls_id,
+                "name": name,
+                "key": routed.key,
+                "specialist": routed.specialist,
+                "policy": routed.policy,
+                "conf": score,
+                "xyxyn": [
+                    max(0.0, min(1.0, x1)),
+                    max(0.0, min(1.0, y1)),
+                    max(0.0, min(1.0, x2)),
+                    max(0.0, min(1.0, y2)),
+                ],
+            }
+        )
+    return detections
+
+
+def predict(image: str, conf: float = 0.15) -> dict[str, Any]:
+    models = load_models()
+    arr = decode_image(image)
+    detections: list[dict[str, Any]] = []
+    for model in models.values():
+        detections.extend(_collect(model, arr, conf))
+    kept = [d for d in detections if should_emit(route_class(d["cls"], d["name"]), d["conf"], conf)]
     return {
         "ok": True,
         "weights": str(_WEIGHTS) if _WEIGHTS else None,
-        "count": len(detections),
-        "detections": detections,
+        "specialists": list(models.keys()),
+        "rawCount": len(detections),
+        "count": len(kept),
+        "detections": kept,
     }
 
 
@@ -182,7 +225,7 @@ class Handler(BaseHTTPRequestHandler):
             image = data.get("image")
             if not isinstance(image, str) or not image.strip():
                 raise ValueError("missing image")
-            conf = float(data.get("conf") or 0.25)
+            conf = float(data.get("conf") or 0.15)
             self._send(200, predict(image, conf=conf))
         except Exception as exc:  # noqa: BLE001
             self._send(500, {"ok": False, "error": str(exc)})
@@ -194,7 +237,7 @@ def main() -> int:
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--image", default="")
-    ap.add_argument("--conf", type=float, default=0.25)
+    ap.add_argument("--conf", type=float, default=0.15)
     args = ap.parse_args()
 
     if args.serve:

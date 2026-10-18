@@ -1,4 +1,4 @@
-import { findingLabel } from "@/lib/dentaai/i18n";
+import { findingLabel, t } from "@/lib/dentaai/i18n";
 import { useApp } from "@/lib/dentaai/store";
 import type { Finding, Severity } from "@/lib/dentaai/types";
 import { cn } from "@/lib/utils";
@@ -17,13 +17,26 @@ const SEVERITY_BG: Record<Severity, string> = {
   low: "bg-low",
 };
 
-export function FindingsSummary({ findings }: { findings: Finding[] }) {
+export function FindingsSummary({
+  findings,
+  withheldCount = 0,
+}: {
+  findings: Finding[];
+  withheldCount?: number;
+}) {
   const lang = useApp((s) => s.language);
   const selectedId = useApp((s) => s.selectedFindingId);
   const select = useApp((s) => s.setSelectedFindingId);
   const tr = lang === "tr";
 
-  if (findings.length === 0) return null;
+  if (findings.length === 0) {
+    if (withheldCount <= 0) return null;
+    return (
+      <section className="card-surface rounded-2xl p-4 text-sm text-muted-foreground">
+        {t(lang, "ensemble.withheld", { n: withheldCount })}
+      </section>
+    );
+  }
 
   const bySeverity = SEVERITIES.map((s) => ({
     severity: s,
@@ -59,6 +72,7 @@ export function FindingsSummary({ findings }: { findings: Finding[] }) {
           <p>
             {tr ? "Ort. güven" : "Avg. confidence"} {Math.round(avg * 100)}%
           </p>
+          {withheldCount > 0 ? <p>{t(lang, "ensemble.withheld", { n: withheldCount })}</p> : null}
         </div>
       </div>
 

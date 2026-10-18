@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { SPECIALISTS } from "@/lib/dentaai/ensemble";
 import { t } from "@/lib/dentaai/i18n";
 import { useApp } from "@/lib/dentaai/store";
 import { cn } from "@/lib/utils";
@@ -51,13 +52,14 @@ function SettingsPage() {
             <h2 className="text-sm font-semibold">{t(lang, "settings.threshold")}</h2>
             <span className="text-sm tabular-nums text-muted-foreground">{Math.round(threshold * 100)}%</span>
           </div>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t(lang, "settings.thresholdHint")}</p>
           <Slider
             className="mt-4"
-            min={0.05}
-            max={0.95}
+            min={0.25}
+            max={0.9}
             step={0.01}
             value={[threshold]}
-            onValueChange={([v]) => setThreshold(v ?? 0.25)}
+            onValueChange={([v]) => setThreshold(v ?? 0.4)}
           />
         </div>
         <div className="flex items-center justify-between gap-3">
@@ -74,18 +76,27 @@ function SettingsPage() {
         <ul className="mt-4 space-y-3 text-sm">
           <li className="rounded-xl bg-muted p-3">
             <p className="font-medium">{t(lang, "settings.xrayModels")}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              models/xray/ — YOLOv11 · Faster R-CNN · RetinaNet · Mask R-CNN · DINO · Soft Voting
-            </p>
+            <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+              <li>{t(lang, "settings.specImpaction")}</li>
+              <li>{t(lang, "settings.specImplant")}</li>
+              <li>{t(lang, "settings.specRestorations")}</li>
+              <li>{t(lang, "settings.specMissing")}</li>
+              <li>{t(lang, "settings.specCaries")}</li>
+              <li>{t(lang, "settings.specPeriapical")}</li>
+              <li>{t(lang, "settings.specBone")}</li>
+            </ul>
           </li>
           <li className="rounded-xl bg-muted p-3">
             <p className="font-medium">{t(lang, "settings.intraModels")}</p>
-            <p className="mt-1 text-xs text-muted-foreground">models/intraoral/ — YOLOv8s / YOLOv11s</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t(lang, "settings.specYuzeysel")}</p>
           </li>
           <li className="rounded-xl bg-muted p-3">
             <p className="font-medium">{t(lang, "settings.fusion")}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Late fusion on normalized labels, with Grad-CAM heatmaps on the AI view.
+              {Object.values(SPECIALISTS)
+                .filter((s) => s.section === "xray")
+                .map((s) => `${s.id}${s.enabled ? "" : " (off)"}`)
+                .join(" · ")}
             </p>
           </li>
         </ul>

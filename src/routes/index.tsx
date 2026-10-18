@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Brain, Camera, FileText, Images, Sparkles } from "lucide-react";
 import { FindingCards } from "@/components/analysis/finding-cards";
 import { Button } from "@/components/ui/button";
+import { gateFindings } from "@/lib/dentaai/ensemble";
 import { fuseFindings } from "@/lib/dentaai/fusion";
 import { t } from "@/lib/dentaai/i18n";
 import { useApp } from "@/lib/dentaai/store";
@@ -15,8 +16,12 @@ function Home() {
   const query = useApp((s) => s.query);
   const xrayImage = useApp((s) => s.xrayImage);
   const intraoralImage = useApp((s) => s.intraoralImage);
-  const xrayFindings = filterByQuery(useApp((s) => s.xrayFindings), query, lang);
-  const intraoralFindings = filterByQuery(useApp((s) => s.intraoralFindings), query, lang);
+  const threshold = useApp((s) => s.threshold);
+  const xrayFindings = gateFindings(filterByQuery(useApp((s) => s.xrayFindings), query, lang), threshold).visible;
+  const intraoralFindings = gateFindings(
+    filterByQuery(useApp((s) => s.intraoralFindings), query, lang),
+    threshold,
+  ).visible;
   const fusion = fuseFindings(xrayFindings, intraoralFindings);
   const loadDemo = useApp((s) => s.loadDemo);
 

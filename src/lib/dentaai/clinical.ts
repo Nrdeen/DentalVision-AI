@@ -51,6 +51,18 @@ const APPROACH: Partial<Record<FindingKey, Text>> = {
     en: "Inspect margins for leakage or secondary caries.",
     tr: "Kenar sızıntısı veya sekonder çürük açısından dolgu kenarlarını inceleyin.",
   },
+  implant: {
+    en: "Check osseointegration, peri-implant bone and prosthetic fit on the radiograph.",
+    tr: "Radyografta osseointegrasyonu, implant çevresi kemiği ve protez uyumunu kontrol edin.",
+  },
+  bridge: {
+    en: "Check abutment teeth, pontic hygiene space and marginal fit.",
+    tr: "Dayanak dişleri, gövde hijyen aralığını ve kenar uyumunu kontrol edin.",
+  },
+  missingTooth: {
+    en: "Assess the edentulous span for replacement (implant, bridge or removable).",
+    tr: "Dişsiz aralığı implanta, köprüye veya hareketli proteze uygunluk açısından değerlendirin.",
+  },
   plaque: {
     en: "Oral hygiene instruction and professional scaling.",
     tr: "Ağız hijyeni eğitimi ve profesyonel detartraj.",

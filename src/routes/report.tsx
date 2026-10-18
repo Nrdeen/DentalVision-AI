@@ -16,6 +16,7 @@ import { MiniFinding } from "@/components/analysis/finding-cards";
 import { FindingOverlay } from "@/components/analysis/finding-overlay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { gateFindings } from "@/lib/dentaai/ensemble";
 import { fuseFindings, getRecommendationKeys } from "@/lib/dentaai/fusion";
 import { findingLabel, t } from "@/lib/dentaai/i18n";
 import { downloadReportPdf } from "@/lib/dentaai/pdf";
@@ -29,8 +30,9 @@ function ReportPage() {
   const lang = useApp((s) => s.language);
   const xrayImage = useApp((s) => s.xrayImage);
   const intraoralImage = useApp((s) => s.intraoralImage);
-  const xrayFindings = useApp((s) => s.xrayFindings);
-  const intraoralFindings = useApp((s) => s.intraoralFindings);
+  const threshold = useApp((s) => s.threshold);
+  const xrayFindings = gateFindings(useApp((s) => s.xrayFindings), threshold).visible;
+  const intraoralFindings = gateFindings(useApp((s) => s.intraoralFindings), threshold).visible;
   const fusion = useMemo(
     () => {
       // Only fuse findings if both images are present

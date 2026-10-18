@@ -1,5 +1,7 @@
 import { toast } from "sonner";
 import { create } from "zustand";
+import { t } from "./i18n";
+import { adultPanoramicAllowed, panoramicCohort } from "./panoramic-age";
 import { withSingleEstimatedTeeth } from "./tooth-numbering";
 import {
   DEFAULT_ADJUST,
@@ -151,6 +153,7 @@ async function requestIntraoralInference(image: string): Promise<{ findings: Fin
 
 export interface AppState {
   language: Lang;
+  patientAge: number | null;
   threshold: number;
   overlayDefault: boolean;
   xrayImage: string | null;
@@ -165,6 +168,7 @@ export interface AppState {
   selectedFindingId: string | null;
   hiddenFindingIds: string[];
   setLanguage: (language: Lang) => void;
+  setPatientAge: (patientAge: number | null) => void;
   setThreshold: (threshold: number) => void;
   setOverlayDefault: (value: boolean) => void;
   setQuery: (query: string) => void;
@@ -190,9 +194,9 @@ let intraJob = 0;
 
 export const useApp = create<AppState>()((set, get) => ({
   language: "tr",
-  // Matches the backend's own conf=0.25 inference threshold; the model already
-  // discarded everything below that, so the UI must not re-filter real detections.
-  threshold: 0.25,
+  patientAge: null,
+  // Operator slider; each specialist also applies its own higher floor in gateFindings.
+  threshold: 0.4,
   overlayDefault: true,
   xrayImage: SAMPLE_XRAY,
   intraoralImage: SAMPLE_INTRAORAL,
@@ -206,6 +210,13 @@ export const useApp = create<AppState>()((set, get) => ({
   selectedFindingId: null,
   hiddenFindingIds: [],
   setLanguage: (language) => set({ language }),
+  setPatientAge: (patientAge) =>
+    set((s) => ({
+      patientAge,
+      ...(adultPanoramicAllowed(patientAge)
+        ? {}
+        : { xrayFindings: [], selectedFindingId: null, hiddenFindingIds: [] }),
+    })),
   setThreshold: (threshold) => set({ threshold }),
   setOverlayDefault: (overlayDefault) =>
     set((s) => ({
@@ -227,12 +238,13 @@ export const useApp = create<AppState>()((set, get) => ({
   resetXrayAdjust: () => set({ xrayAdjust: { ...DEFAULT_ADJUST } }),
   resetIntraoralAdjust: () => set({ intraoralAdjust: { ...DEFAULT_ADJUST } }),
   loadDemo: () => {
-    set({ intraoralAdjust: { ...DEFAULT_ADJUST } });
+    set({ intraoralAdjust: { ...DEFAULT_ADJUST }, patientAge: 35 });
     void get().runXray(SAMPLE_XRAY);
     void get().runIntraoral(SAMPLE_INTRAORAL);
   },
   clearCase: () =>
     set({
+      patientAge: null,
       xrayImage: null,
       intraoralImage: null,
       xrayFindings: [],
@@ -241,6 +253,20 @@ export const useApp = create<AppState>()((set, get) => ({
       hiddenFindingIds: [],
     }),
   runXray: async (image) => {
+    const cohort = panoramicCohort(get().patientAge);
+    if (cohort !== "adult") {
+      const key =
+        cohort === "child" ? "xray.childHeld" : cohort === "adolescent" ? "xray.gapHeld" : "xray.ageRequired";
+      set({
+        analyzing: null,
+        xrayImage: image,
+        xrayFindings: [],
+        selectedFindingId: null,
+        hiddenFindingIds: [],
+      });
+      toast.message(t(get().language, key));
+      return;
+    }
     const job = ++xrayJob;
     set({
       analyzing: "xray",

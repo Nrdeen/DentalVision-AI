@@ -5,6 +5,7 @@ import { FindingsSummary } from "@/components/analysis/findings-summary";
 import { FindingsPanel } from "@/components/analysis/findings-panel";
 import { ImageWorkspace } from "@/components/analysis/image-workspace";
 import { filterByQuery } from "@/components/layout/app-shell";
+import { gateFindings } from "@/lib/dentaai/ensemble";
 import { t } from "@/lib/dentaai/i18n";
 import { useApp } from "@/lib/dentaai/store";
 import { Badge } from "@/components/ui/badge";
@@ -41,8 +42,9 @@ function IntraoralPage() {
   stateFindings.forEach((f, i) => {
     console.log(`  ${i+1}. ${f.id} | ${f.key} | ${f.confidence.toFixed(4)} | bbox: [${f.bbox.map(b => b.toFixed(4)).join(', ')}]`);
   });
-  const visible = findings.filter((f) => f.confidence >= threshold);
-  const overlayFindings = findings.filter((f) => f.confidence >= threshold);
+  const gated = gateFindings(findings, threshold);
+  const visible = gated.visible;
+  const overlayFindings = gated.visible;
   console.log(`[INTRAORAL] Visible cards: ${visible.length}, Overlay findings: ${overlayFindings.length}`);
   console.log(`[INTRAORAL] Filtered out by threshold: ${findings.length - visible.length}`);
   findings.filter((f) => f.confidence < threshold).forEach((f, i) => {
@@ -51,7 +53,7 @@ function IntraoralPage() {
 
   return (
     <div className="space-y-4">
-      <FindingsSummary findings={visible} />
+      <FindingsSummary findings={visible} withheldCount={gated.withheld.length} />
       
       {/* MIO Classification - Separate from detections */}
       {mioClassification && (

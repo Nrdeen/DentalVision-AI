@@ -1,7 +1,8 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import type { Finding, FindingKey, Severity } from "./types";
+import { annotateFinding, routeXrayClass, severityOf } from "./ensemble";
+import type { Finding } from "./types";
 
 const INFER_PORT = Number(process.env.XRAY_INFER_PORT || 8765);
 const INFER_HOST = "127.0.0.1";
@@ -20,17 +21,6 @@ type InferPayload = {
   error?: string;
   weights?: string | null;
   detections?: RawDetection[];
-};
-
-const CLASS_MAP: Record<
-  number,
-  { key: FindingKey; descriptionKey: string; colorVar: string }
-> = {
-  0: { key: "caries", descriptionKey: "cariesDesc", colorVar: "--color-finding-caries" },
-  1: { key: "xrayKuretaj", descriptionKey: "xrayKuretajDesc", colorVar: "--color-finding-deep" },
-  2: { key: "rootCanal", descriptionKey: "rootCanalDesc", colorVar: "--color-finding-kanal" },
-  3: { key: "impacted", descriptionKey: "impactedDesc", colorVar: "--color-finding-impacted" },
-  4: { key: "periapical", descriptionKey: "periapicalDesc", colorVar: "--color-finding-periapical" },
 };
 
 let child: ChildProcess | null = null;
@@ -63,27 +53,11 @@ function positionFromBox(bbox: [number, number, number, number]): string {
   return "lowerLeftRegion";
 }
 
-function severityOf(conf: number): Severity {
-  if (conf >= 0.75) return "high";
-  if (conf >= 0.5) return "medium";
-  return "low";
-}
-
-function mapClass(d: RawDetection) {
-  if (CLASS_MAP[d.cls]) return CLASS_MAP[d.cls];
-  const n = `${d.name}`.toLowerCase();
-  if (n.includes("kretaj") || n.includes("deep")) return CLASS_MAP[1];
-  if (n.includes("kanal") || n.includes("canal")) return CLASS_MAP[2];
-  if (n.includes("gömülü") || n.includes("gomulu") || n.includes("impact")) return CLASS_MAP[3];
-  if (n.includes("lezyon") || n.includes("periap")) return CLASS_MAP[4];
-  return CLASS_MAP[0];
-}
-
 export function detectionsToFindings(detections: RawDetection[]): Finding[] {
   return detections.map((d, i) => {
-    const mapped = mapClass(d) ?? CLASS_MAP[0];
+    const mapped = routeXrayClass(d.cls, d.name);
     const bbox = d.xyxyn;
-    return {
+    return annotateFinding({
       id: `x-${d.cls}-${i}-${Math.round(bbox[0] * 1000)}-${Math.round(bbox[1] * 1000)}`,
       key: mapped.key,
       confidence: d.conf,
@@ -94,7 +68,12 @@ export function detectionsToFindings(detections: RawDetection[]): Finding[] {
       bbox,
       colorVar: mapped.colorVar,
       source: "xray",
-    };
+      modelName: "xray",
+      modelClassId: d.cls,
+      modelClassName: d.name,
+      specialistId: mapped.specialist,
+      displayPolicy: mapped.policy,
+    });
   });
 }
 
@@ -210,7 +189,7 @@ export async function handleXrayInfer(request: Request): Promise<Response> {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         image,
-        conf: typeof body.conf === "number" ? body.conf : 0.25,
+        conf: typeof body.conf === "number" ? body.conf : 0.15,
       }),
       signal: AbortSignal.timeout(120_000),
     });

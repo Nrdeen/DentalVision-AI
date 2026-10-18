@@ -35,7 +35,12 @@ export type FindingKey =
   | "caries3"
   | "caries4"
   | "caries5"
-  | "caries6";
+  | "caries6"
+  | "boneLoss"
+  | "missingTooth"
+  | "retainedRoot"
+  | "implant"
+  | "bridge";
 
 /**
  * Shared detector result consumed by image overlays, finding cards and report fusion.
@@ -62,6 +67,19 @@ export interface Finding {
   modelName?: "xray" | "annotated-intraoral-caries" | "alphadent" | "mio";
   modelClassId?: number;
   modelClassName?: string;
+  specialistId?:
+    | "xray-impaction"
+    | "xray-implant"
+    | "xray-restorations"
+    | "xray-periapical"
+    | "xray-bone"
+    | "xray-caries"
+    | "xray-missing"
+    | "intra-caries"
+    | "intra-surface"
+    | "intra-periodontal";
+  displayPolicy?: "show" | "withhold" | "anatomy";
+  withheldReason?: "low-confidence" | "anatomy" | "unreliable-class" | "below-user-threshold";
 }
 
 export interface ImageAdjust {
