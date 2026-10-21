@@ -50,6 +50,32 @@ test("only impacted tooth from the panoramic set stays visible", () => {
   assert.ok(withheld.some((f) => f.key === "periapical"));
 });
 
+test("trained implant specialist is shown when confidence clears the floor", () => {
+  const { visible, withheld } = gateFindings(
+    [
+      {
+        id: "imp-1",
+        key: "implant",
+        confidence: 0.88,
+        tooth: "-",
+        positionKey: "upperRightRegion",
+        severity: "high",
+        descriptionKey: "implantDesc",
+        bbox: [0.2, 0.3, 0.3, 0.45],
+        colorVar: "--color-finding-implant",
+        source: "xray",
+        modelClassName: "implant",
+      },
+    ],
+    0.4,
+  );
+  assert.deepEqual(
+    visible.map((f) => f.key),
+    ["implant"],
+  );
+  assert.equal(withheld.length, 0);
+});
+
 test("yüzeysel intraoral findings stay in section 2 after the gate", () => {
   const { visible } = gateFindings(detectIntraoral(), 0.4);
   assert.ok(visible.some((f) => f.key === "earlyCaries"));

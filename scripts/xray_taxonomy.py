@@ -95,8 +95,8 @@ FLOORS = {
 
 ENABLED = {
     "xray-impaction": True,
-    "xray-implant": False,
-    "xray-restorations": False,
+    "xray-implant": True,
+    "xray-restorations": True,
     "xray-missing": False,
     "xray-caries": False,
     "xray-periapical": False,

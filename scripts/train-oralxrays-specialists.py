@@ -37,6 +37,29 @@ def is_oom(exc: BaseException) -> bool:
     return "out of memory" in text or "cuda error: out of memory" in text
 
 
+def pin_yaml_dataset_root(yaml_path: Path) -> Path:
+    """Point `path:` at this machine's drive letter (E: laptop / G: desktop)."""
+    root = yaml_path.parent.resolve()
+    images = root / "valid" / "images"
+    if not images.is_dir():
+        print(f"[FATAL] images missing: {images}")
+        raise FileNotFoundError(images)
+    lines: list[str] = []
+    replaced = False
+    for line in yaml_path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("path:"):
+            lines.append(f"path: {root.as_posix()}")
+            replaced = True
+        else:
+            lines.append(line)
+    if not replaced:
+        insert_at = 1 if lines and lines[0].startswith("#") else 0
+        lines.insert(insert_at, f"path: {root.as_posix()}")
+    yaml_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"[INFO] dataset root {root}")
+    return yaml_path
+
+
 def train_one(
     spec: str,
     yaml_name: str,
@@ -52,6 +75,10 @@ def train_one(
     if not data.is_file():
         print(f"[FATAL] missing {data}")
         print("        prepare first: python scripts/prepare-oralxrays9.py")
+        return 2
+    try:
+        data = pin_yaml_dataset_root(data)
+    except FileNotFoundError:
         return 2
 
     try:

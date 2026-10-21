@@ -17,9 +17,13 @@ import { toothDisplay } from "@/lib/dentaai/tooth-numbering";
 export function FindingsPanel({
   modality,
   findings,
+  forcedTab,
+  withheldCount = 0,
 }: {
   modality: Modality;
   findings: Finding[];
+  forcedTab?: "ai" | "report";
+  withheldCount?: number;
 }) {
   const lang = useApp((s) => s.language);
   const selected = useApp((s) => s.selectedFindingId);
@@ -29,6 +33,7 @@ export function FindingsPanel({
   const setHidden = useApp((s) => s.setHiddenFindingIds);
   const allShown = findings.every((f) => !hidden.includes(f.id));
   const [tab, setTab] = useState<"ai" | "report">("ai");
+  const activeTab = forcedTab ?? tab;
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Selecting a detection on the image jumps to its card here.
@@ -42,35 +47,33 @@ export function FindingsPanel({
   }, [selected]);
 
   return (
-    <aside className="card-surface flex flex-col rounded-2xl p-3">
-      <div className="mb-3 flex rounded-xl bg-secondary p-1">
-        <button
-          type="button"
-          onClick={() => setTab("ai")}
-          className={cn(
-            "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold",
-            tab === "ai" ? "bg-card text-primary shadow-sm" : "text-muted-foreground",
-          )}
-        >
-          <Brain className="size-3.5" />
-          {t(lang, "common.aiAnalysis")}
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("report")}
-          className={cn(
-            "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold",
-            tab === "report" ? "bg-card text-primary shadow-sm" : "text-muted-foreground",
-          )}
-        >
-          <FileText className="size-3.5" />
-          {t(lang, "common.report")}
-        </button>
-      </div>
+    <aside className="flex h-full min-h-0 flex-col overflow-hidden p-3">
+      {forcedTab ? null : (
+        <div className="tab-track mb-3">
+          <button
+            type="button"
+            data-active={activeTab === "ai"}
+            onClick={() => setTab("ai")}
+            className="tab-btn flex-1"
+          >
+            <Brain className="size-3.5" />
+            {t(lang, "common.aiAnalysis")}
+          </button>
+          <button
+            type="button"
+            data-active={activeTab === "report"}
+            onClick={() => setTab("report")}
+            className="tab-btn flex-1"
+          >
+            <FileText className="size-3.5" />
+            {t(lang, "common.report")}
+          </button>
+        </div>
+      )}
 
-      {tab === "ai" ? (
+      {activeTab === "ai" ? (
         <>
-          <DentalChart findings={findings} tr={lang === "tr"} />
+          {findings.length > 0 ? <DentalChart findings={findings} tr={lang === "tr"} /> : null}
 
           <div className="mb-2 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -93,10 +96,11 @@ export function FindingsPanel({
               </button>
             ) : null}
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
             {findings.length === 0 ? (
-              <p className="rounded-xl bg-muted px-3 py-4 text-xs leading-relaxed text-muted-foreground">
+              <p className="rounded-md bg-muted px-3 py-4 text-xs leading-relaxed text-muted-foreground">
                 {t(lang, "common.noFindings")}
+                {withheldCount > 0 ? ` ${t(lang, "ensemble.withheld", { n: withheldCount })}` : ""}
               </p>
             ) : null}
             {findings.map((f, index) => {

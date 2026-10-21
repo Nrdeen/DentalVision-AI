@@ -1,6 +1,7 @@
 import { Tag } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { findingLabel } from "@/lib/dentaai/i18n";
+import { contourInImage, type Point } from "@/lib/dentaai/tooth-contour";
 import type { Finding, Lang } from "@/lib/dentaai/types";
 import { cn } from "@/lib/utils";
 import { toothDisplay } from "@/lib/dentaai/tooth-numbering";
@@ -29,31 +30,84 @@ function clampRect(left: number, top: number, size: Size, container: Size): Rect
   };
 }
 
-function toothOutlinePath(bbox: Finding["bbox"]) {
-  const [x1, y1, x2, y2] = bbox.map((value) => value * 100);
-  const width = x2 - x1;
-  const height = y2 - y1;
-  const left = x1 + width * 0.14;
-  const right = x2 - width * 0.14;
-  const center = (left + right) / 2;
-  const upper = (y1 + y2) / 2 < 48;
-  const crownTop = upper ? y1 + height * 0.42 : y1 + height * 0.08;
-  const crownBottom = upper ? y2 - height * 0.08 : y1 + height * 0.58;
-  const rootTip = upper ? y1 + height * 0.04 : y2 - height * 0.04;
-  const rootShoulder = upper ? crownTop : crownBottom;
-  const rootDirection = upper ? -1 : 1;
+function isUpperArch(bbox: Finding["bbox"]) {
+  return (bbox[1] + bbox[3]) / 2 < 0.5;
+}
 
-  return [
-    `M ${left} ${crownBottom}`,
-    `Q ${left - width * 0.02} ${crownTop} ${left + width * 0.24} ${crownTop}`,
-    `Q ${center} ${crownTop - height * 0.08} ${right - width * 0.24} ${crownTop}`,
-    `Q ${right + width * 0.02} ${crownTop} ${right} ${crownBottom}`,
-    `L ${center + width * 0.16} ${rootShoulder}`,
-    `Q ${center + width * 0.12} ${rootTip + rootDirection * height * 0.02} ${center + width * 0.06} ${rootTip}`,
-    `Q ${center} ${rootTip + rootDirection * height * 0.08} ${center - width * 0.06} ${rootTip}`,
-    `Q ${center - width * 0.12} ${rootTip + rootDirection * height * 0.02} ${center - width * 0.16} ${rootShoulder}`,
-    "Z",
-  ].join(" ");
+/** Crown at the top of a 100×140 local box; stretched to the detection bbox. */
+const TOOTH_INCISOR =
+  "M38 5C27 7 20 16 20 28C18 40 22 48 30 52C34 74 40 108 44 130C46 137 50 139 54 130C58 108 64 74 68 52C76 48 80 40 78 28C78 16 71 7 60 5C52 3 46 3 38 5Z";
+const TOOTH_MOLAR =
+  "M16 8C9 12 7 20 9 32L11 48C7 54 9 64 15 82C19 104 17 122 20 132C22 139 30 139 34 129C38 115 42 94 48 72C52 94 56 115 60 129C64 139 72 139 74 132C77 122 75 104 79 82C85 64 87 54 83 48L85 32C87 20 85 12 78 8C66 3 28 3 16 8Z";
+const TOOTH_CROWN =
+  "M14 10C8 14 8 24 12 36C16 46 22 52 32 54H68C78 52 84 46 88 36C92 24 92 14 86 10C74 4 26 4 14 10Z";
+
+function toothPath(finding: Finding) {
+  if (finding.key === "crown" || finding.key === "bridge") return TOOTH_CROWN;
+  const [x1, y1, x2, y2] = finding.bbox;
+  const ratio = (x2 - x1) / Math.max(y2 - y1, 1e-6);
+  return ratio > 0.36 ? TOOTH_MOLAR : TOOTH_INCISOR;
+}
+
+function ToothGlyph({
+  finding,
+  active,
+  compact,
+  dimmed,
+  interaction,
+}: {
+  finding: Finding;
+  active: boolean;
+  compact: boolean;
+  dimmed: boolean;
+  interaction: Record<string, unknown>;
+}) {
+  const [x1, y1, x2, y2] = finding.bbox;
+  const upper = isUpperArch(finding.bbox);
+  const cx = (x1 + x2) / 2;
+  const ratio = (x2 - x1) / Math.max(y2 - y1, 1e-6);
+  const horizontal = ratio > 0.85;
+  const rotate = horizontal ? (cx < 0.5 ? 90 : -90) : 0;
+  const color = `var(${finding.colorVar})`;
+
+  return (
+    <svg
+      className={cn("absolute overflow-visible", !compact && "pointer-events-auto cursor-pointer")}
+      style={{
+        left: `${x1 * 100}%`,
+        top: `${y1 * 100}%`,
+        width: `${(x2 - x1) * 100}%`,
+        height: `${(y2 - y1) * 100}%`,
+        opacity: dimmed ? 0.35 : 1,
+        transition: "opacity 150ms",
+      }}
+      viewBox="0 0 100 140"
+      preserveAspectRatio="none"
+      aria-hidden
+      {...(compact ? {} : interaction)}
+    >
+      <g
+        transform={
+          upper && !horizontal
+            ? "translate(0 140) scale(1 -1)"
+            : rotate
+              ? `rotate(${rotate} 50 70)`
+              : undefined
+        }
+      >
+        <path
+          d={toothPath(finding)}
+          fill={color}
+          fillOpacity={active ? 0.28 : 0.16}
+          stroke={color}
+          strokeWidth={active ? 2.1 : 1.55}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </g>
+    </svg>
+  );
 }
 
 // Visual-only placement: bbox/mask data is read, never modified.
@@ -78,17 +132,20 @@ function placeNearBoxes(
     const y1 = by1 * container.h;
     const x2 = bx2 * container.w;
     const y2 = by2 * container.h;
+    const upper = isUpperArch(f.bbox);
+    const crownY = upper ? y2 - h - GAP : y1 + GAP;
 
     const candidates: Array<[number, number]> = [
-      [x1, y1 - h - GAP], // above
-      [x2 - w, y1 - h - GAP], // above right
-      [x1 - w, y1 - h - GAP], // above left
-      [x2 + GAP, y1], // right
-      [x1 - w - GAP, y1], // left
-      [x1, y2 + GAP], // below
-      [x2 - w, y2 + GAP], // below right
-      [x1 - w, y2 + GAP], // below left
-      // Last resort: stack above, still hugging the box.
+      [x1, crownY],
+      [x2 - w, crownY],
+      [x1, y1 - h - GAP],
+      [x2 - w, y1 - h - GAP],
+      [x1 - w, y1 - h - GAP],
+      [x2 + GAP, y1],
+      [x1 - w - GAP, y1],
+      [x1, y2 + GAP],
+      [x2 - w, y2 + GAP],
+      [x1 - w, y2 + GAP],
       [x1, y1 - 2 * h - GAP - MARGIN],
       [x1, y1 - 3 * h - GAP - 2 * MARGIN],
     ];
@@ -119,6 +176,7 @@ export function FindingOverlay({
   compact = false,
   selectedId,
   onSelect,
+  filmImage = null,
 }: {
   findings: Finding[];
   hiddenIds?: string[];
@@ -126,6 +184,7 @@ export function FindingOverlay({
   compact?: boolean;
   selectedId?: string | null;
   onSelect?: (id: string) => void;
+  filmImage?: HTMLImageElement | null;
 }) {
   // Hidden detections are skipped, but pin numbers keep the original order.
   const findings = useMemo(
@@ -187,6 +246,17 @@ export function FindingOverlay({
 
   const focusId = hoveredId ?? selectedId ?? null;
 
+  const contours = useMemo(() => {
+    if (!filmImage?.naturalWidth) return {} as Record<string, Point[]>;
+    const next: Record<string, Point[]> = {};
+    for (const f of findings) {
+      if (f.source !== "xray" || (f.mask && f.mask.length > 0)) continue;
+      const pts = contourInImage(filmImage, f.bbox);
+      if (pts) next[f.id] = pts;
+    }
+    return next;
+  }, [findings, filmImage]);
+
   const pinPositions = useMemo(
     () =>
       container
@@ -211,6 +281,26 @@ export function FindingOverlay({
 
   return (
     <div ref={rootRef} className="pointer-events-none absolute inset-0">
+      {findings.map((f) => {
+        if (f.source !== "xray" || (f.mask && f.mask.length > 0) || contours[f.id]) return null;
+        const active = focusId === f.id;
+        const dimmed = !compact && hoveredId !== null && hoveredId !== f.id;
+        return (
+          <ToothGlyph
+            key={f.id}
+            finding={f}
+            active={active}
+            compact={compact}
+            dimmed={dimmed}
+            interaction={{
+              onClick: () => onSelect?.(f.id),
+              onPointerEnter: () => hover(f.id),
+              onPointerLeave: release,
+            }}
+          />
+        );
+      })}
+
       <svg className="absolute inset-0 size-full" viewBox="0 0 100 100" preserveAspectRatio="none">
         {findings.map((f) => {
           const active = focusId === f.id;
@@ -221,61 +311,43 @@ export function FindingOverlay({
             onPointerLeave: release,
           };
 
-          // Render segmentation mask if available
-          if (f.mask && f.mask.length > 0) {
-            const points = f.mask.map(([x, y]) => `${x * 100} ${y * 100}`).join(" ");
+          const outline = f.mask && f.mask.length > 0 ? f.mask : contours[f.id];
+          if (outline && outline.length > 0) {
+            const points = outline.map(([x, y]) => `${x * 100} ${y * 100}`).join(" ");
             return (
               <g key={f.id} style={{ opacity: dimmed ? 0.35 : 1, transition: "opacity 150ms" }}>
                 <polygon
                   points={points}
                   fill={`var(${f.colorVar})`}
-                  fillOpacity={active ? "0.25" : "0.15"}
+                  fillOpacity={active ? "0.34" : "0.22"}
                   stroke={`var(${f.colorVar})`}
-                  strokeWidth="0.8"
-                  className={cn(!compact && "pointer-events-auto cursor-pointer", active && "stroke-[1.0]")}
+                  strokeWidth={active ? "2.2" : "1.8"}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                  className={cn(!compact && "pointer-events-auto cursor-pointer")}
                   {...(compact ? {} : interaction)}
                 />
               </g>
             );
           }
 
-          // This is only a visual approximation of the model bbox, not a tooth
-          // boundary or a disease segmentation mask.
+          if (f.source === "xray") return null;
+
           const [x1, y1, x2, y2] = f.bbox;
           return (
             <g key={f.id} style={{ opacity: dimmed ? 0.35 : 1, transition: "opacity 150ms" }}>
-              {f.source === "xray" ? (
-                <path
-                  d={toothOutlinePath(f.bbox)}
-                  fill={`var(${f.colorVar})`}
-                  fillOpacity={active ? "0.34" : "0.2"}
-                  stroke={`var(${f.colorVar})`}
-                  strokeWidth={active ? "1.8" : "1.35"}
-                  strokeDasharray="3 2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  vectorEffect="non-scaling-stroke"
-                  aria-label={
-                    lang === "tr"
-                      ? "Model sınırlayıcı kutusunun yaklaşık görseli; diş veya lezyon sınırı değildir"
-                      : "Approximation of the model bounding box; not a tooth or lesion boundary"
-                  }
-                  className={cn(!compact && "pointer-events-auto cursor-pointer")}
-                  {...(compact ? {} : interaction)}
-                />
-              ) : (
-                <rect
-                  x={`${x1 * 100}%`}
-                  y={`${y1 * 100}%`}
-                  width={`${(x2 - x1) * 100}%`}
-                  height={`${(y2 - y1) * 100}%`}
-                  fill="transparent"
-                  stroke={`var(${f.colorVar})`}
-                  strokeWidth="0.8"
-                  className={cn(!compact && "pointer-events-auto cursor-pointer")}
-                  {...(compact ? {} : interaction)}
-                />
-              )}
+              <rect
+                x={`${x1 * 100}%`}
+                y={`${y1 * 100}%`}
+                width={`${(x2 - x1) * 100}%`}
+                height={`${(y2 - y1) * 100}%`}
+                fill="transparent"
+                stroke={`var(${f.colorVar})`}
+                strokeWidth="0.8"
+                className={cn(!compact && "pointer-events-auto cursor-pointer")}
+                {...(compact ? {} : interaction)}
+              />
             </g>
           );
         })}

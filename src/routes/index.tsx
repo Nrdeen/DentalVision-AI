@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Brain, Camera, FileText, Images, Sparkles } from "lucide-react";
-import { FindingCards } from "@/components/analysis/finding-cards";
+import { ArrowRight, Camera, FileText, Images } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { gateFindings } from "@/lib/dentaai/ensemble";
 import { fuseFindings } from "@/lib/dentaai/fusion";
@@ -25,21 +24,13 @@ function Home() {
   const fusion = fuseFindings(xrayFindings, intraoralFindings);
   const loadDemo = useApp((s) => s.loadDemo);
 
-  const overall =
-    fusion.overallKey === "moderate"
-      ? t(lang, "report.moderate")
-      : fusion.overallKey === "mild"
-        ? t(lang, "report.mild")
-        : t(lang, "report.lowRisk");
-
   return (
-    <div className="space-y-5">
-      <section className="card-surface overflow-hidden rounded-2xl p-5 md:p-7">
-        <p className="text-xs font-semibold tracking-wide text-primary uppercase">{t(lang, "home.kicker")}</p>
-        <h1 className="mt-2 max-w-3xl text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+    <div className="space-y-8">
+      <section className="max-w-2xl">
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground md:text-[2.15rem]">
           {t(lang, "home.title")}
         </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">{t(lang, "home.lead")}</p>
+        <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">{t(lang, "home.lead")}</p>
         <div className="mt-5 flex flex-wrap gap-2">
           <Button asChild>
             <Link to="/xray">
@@ -56,127 +47,70 @@ function Home() {
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label={t(lang, "home.statsX")} value={fusion.xrayCount} tone="primary" />
-        <Stat label={t(lang, "home.statsI")} value={fusion.intraCount} tone="low" />
-        <Stat label={t(lang, "home.statsS")} value={fusion.sharedCount} tone="finding-gingivitis" />
-        <Stat label={t(lang, "home.statsO")} value={overall} tone="medium" />
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        <PreviewCard
-          title={t(lang, "report.xrayTitle")}
-          image={xrayImage}
+      <section className="grid gap-4 md:grid-cols-2">
+        <ModalityTile
           to="/xray"
-          cta={t(lang, "home.openXray")}
+          title={t(lang, "nav.xray")}
+          body={t(lang, "home.xrayDiseases")}
+          image={xrayImage}
+          count={fusion.xrayCount}
           icon={<Images className="size-4" />}
-          diseases={t(lang, "home.xrayDiseases")}
         />
-        <PreviewCard
-          title={t(lang, "report.intraTitle")}
-          image={intraoralImage}
+        <ModalityTile
           to="/intraoral"
-          cta={t(lang, "home.openIntra")}
+          title={t(lang, "nav.intraoral")}
+          body={t(lang, "home.intraDiseases")}
+          image={intraoralImage}
+          count={fusion.intraCount}
           icon={<Camera className="size-4" />}
-          diseases={t(lang, "home.intraDiseases")}
         />
       </section>
 
-      {xrayFindings.length ? (
-        <section>
-          <h2 className="mb-3 text-sm font-semibold">{t(lang, "report.xrayTitle")}</h2>
-          <FindingCards findings={xrayFindings.slice(0, 4)} />
-        </section>
-      ) : null}
-
-      <section className="card-surface rounded-2xl p-5">
-        <h2 className="mb-4 text-sm font-semibold">{t(lang, "home.pipeline")}</h2>
-        <div className="grid gap-3 md:grid-cols-3">
-          <Step icon={<Images className="size-4" />} title={t(lang, "home.s1")} body={t(lang, "home.s1d")} />
-          <Step icon={<Camera className="size-4" />} title={t(lang, "home.s2")} body={t(lang, "home.s2d")} />
-          <Step icon={<Brain className="size-4" />} title={t(lang, "home.s3")} body={t(lang, "home.s3d")} />
-        </div>
-        <div className="mt-4">
-          <Button asChild>
-            <Link to="/report">
-              <FileText />
-              {t(lang, "home.openReport")}
-            </Link>
-          </Button>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string | number;
-  tone: string;
-}) {
-  return (
-    <div className="card-surface rounded-2xl p-4">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-2 text-2xl font-semibold tabular-nums" style={{ color: `var(--color-${tone})` }}>
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function PreviewCard({
-  title,
-  image,
-  to,
-  cta,
-  icon,
-  diseases,
-}: {
-  title: string;
-  image: string | null;
-  to: "/xray" | "/intraoral";
-  cta: string;
-  icon: ReactNode;
-  diseases: string;
-}) {
-  return (
-    <Link to={to} className="card-surface group overflow-hidden rounded-2xl">
-      <div className="relative aspect-16/8 bg-foreground">
-        {image ? (
-          <img src={image} alt="" className="size-full object-cover" />
-        ) : (
-          <div className="flex size-full items-center justify-center text-muted-foreground">
-            <Sparkles className="size-6" />
-          </div>
-        )}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
+        <p className="text-sm text-muted-foreground">
+          {t(lang, "home.statsS")} {fusion.sharedCount}
+        </p>
+        <Button variant="outline" asChild>
+          <Link to="/report">
+            <FileText />
+            {t(lang, "home.openReport")}
+          </Link>
+        </Button>
       </div>
-      <div className="p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 font-semibold">
+    </div>
+  );
+}
+
+function ModalityTile({
+  to,
+  title,
+  body,
+  image,
+  count,
+  icon,
+}: {
+  to: "/xray" | "/intraoral";
+  title: string;
+  body: string;
+  image: string | null;
+  count: number;
+  icon: ReactNode;
+}) {
+  return (
+    <Link to={to} className="card-surface group overflow-hidden rounded-xl">
+      <div className="relative aspect-[16/8] bg-film">
+        {image ? <img src={image} alt="" className="size-full object-cover" /> : null}
+      </div>
+      <div className="flex items-start justify-between gap-3 p-4">
+        <div>
+          <p className="flex items-center gap-2 text-sm font-semibold">
             <span className="text-primary">{icon}</span>
             {title}
-          </div>
-          <span className="text-xs font-medium text-primary group-hover:underline">{cta}</span>
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{body}</p>
         </div>
-        <div className="mt-3 rounded-lg bg-muted p-3">
-          <p className="text-xs font-semibold text-muted-foreground">{t(useApp.getState().language, "home.detectedDiseases")}</p>
-          <p className="mt-1 text-xs leading-relaxed text-foreground">{diseases}</p>
-        </div>
+        <span className="text-lg font-semibold tabular-nums">{count}</span>
       </div>
     </Link>
-  );
-}
-
-function Step({ icon, title, body }: { icon: ReactNode; title: string; body: string }) {
-  return (
-    <div className="rounded-xl bg-muted p-4">
-      <div className="mb-2 flex size-9 items-center justify-center rounded-lg bg-accent text-primary">{icon}</div>
-      <p className="text-sm font-semibold">{title}</p>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{body}</p>
-    </div>
   );
 }

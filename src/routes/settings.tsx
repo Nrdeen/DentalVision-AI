@@ -21,13 +21,13 @@ function SettingsPage() {
   const clearCase = useApp((s) => s.clearCase);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="mx-auto max-w-2xl space-y-5">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{t(lang, "settings.title")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{t(lang, "settings.lead")}</p>
       </div>
 
-      <section className="card-surface rounded-2xl p-5">
+      <section className="card-surface rounded-xl p-5">
         <h2 className="text-sm font-semibold">{t(lang, "settings.language")}</h2>
         <div className="mt-3 flex gap-2">
           {(["en", "tr"] as const).map((code) => (
@@ -46,7 +46,7 @@ function SettingsPage() {
         </div>
       </section>
 
-      <section className="card-surface space-y-5 rounded-2xl p-5">
+      <section className="card-surface space-y-5 rounded-xl p-5">
         <div>
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">{t(lang, "settings.threshold")}</h2>
@@ -70,7 +70,7 @@ function SettingsPage() {
         </div>
       </section>
 
-      <section className="card-surface rounded-2xl p-5">
+      <section className="card-surface rounded-xl p-5">
         <h2 className="text-sm font-semibold">{t(lang, "settings.models")}</h2>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t(lang, "settings.modelsLead")}</p>
         <ul className="mt-4 space-y-3 text-sm">
@@ -102,7 +102,7 @@ function SettingsPage() {
         </ul>
       </section>
 
-      <section className="card-surface rounded-2xl p-5">
+      <section className="card-surface rounded-xl p-5">
         <h2 className="text-sm font-semibold">{t(lang, "settings.about")}</h2>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t(lang, "settings.aboutBody")}</p>
         <div className="mt-4 flex flex-wrap gap-2">

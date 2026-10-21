@@ -1,16 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Heart } from "lucide-react";
-import { useEffect, useRef } from "react";
-import { FindingsSummary } from "@/components/analysis/findings-summary";
+import { useEffect, useRef, useState } from "react";
 import { FindingsPanel } from "@/components/analysis/findings-panel";
 import { ImageWorkspace } from "@/components/analysis/image-workspace";
 import { filterByQuery } from "@/components/layout/app-shell";
+import { Badge } from "@/components/ui/badge";
 import { gateFindings } from "@/lib/dentaai/ensemble";
 import { t } from "@/lib/dentaai/i18n";
 import { useApp } from "@/lib/dentaai/store";
-import { Badge } from "@/components/ui/badge";
 
-export const Route = createFileRoute("/intraoral")({ component: IntraoralPage });
+export const Route = createFileRoute("/intraoral")({
+  ssr: false,
+  component: IntraoralPage,
+});
 
 function IntraoralPage() {
   const lang = useApp((s) => s.language);
@@ -25,9 +27,12 @@ function IntraoralPage() {
   const resetIntraoralAdjust = useApp((s) => s.resetIntraoralAdjust);
   const runIntraoral = useApp((s) => s.runIntraoral);
   const threshold = useApp((s) => s.threshold);
+  const selectedFindingId = useApp((s) => s.selectedFindingId);
   const analyzedImageRef = useRef<string | null>(null);
+  const [pane, setPane] = useState<"film" | "findings" | "report">("film");
+  const gated = gateFindings(findings, threshold);
+  const visible = gated.visible;
 
-  // Auto-analyze on mount if an image exists but hasn't been analyzed (mirrors the X-ray page).
   useEffect(() => {
     if (image && image !== analyzedImageRef.current && !analyzing && stateFindings.length === 0) {
       analyzedImageRef.current = image;
@@ -35,60 +40,78 @@ function IntraoralPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [image]);
-  // Each real detection (already deduped by IoU at the data layer) gets its own card.
-  console.log(`[INTRAORAL] State findings: ${stateFindings.length}, After filter: ${findings.length}`);
-  console.log(`[INTRAORAL] Threshold: ${threshold}`);
-  console.log(`[INTRAORAL] State findings list:`);
-  stateFindings.forEach((f, i) => {
-    console.log(`  ${i+1}. ${f.id} | ${f.key} | ${f.confidence.toFixed(4)} | bbox: [${f.bbox.map(b => b.toFixed(4)).join(', ')}]`);
-  });
-  const gated = gateFindings(findings, threshold);
-  const visible = gated.visible;
-  const overlayFindings = gated.visible;
-  console.log(`[INTRAORAL] Visible cards: ${visible.length}, Overlay findings: ${overlayFindings.length}`);
-  console.log(`[INTRAORAL] Filtered out by threshold: ${findings.length - visible.length}`);
-  findings.filter((f) => f.confidence < threshold).forEach((f, i) => {
-    console.log(`  Filtered: ${f.id} | ${f.key} | conf: ${f.confidence.toFixed(4)} < threshold: ${threshold}`);
-  });
+
+  useEffect(() => {
+    if (selectedFindingId) setPane("findings");
+  }, [selectedFindingId]);
 
   return (
-    <div className="space-y-4">
-      <FindingsSummary findings={visible} withheldCount={gated.withheld.length} />
-      
-      {/* MIO Classification - Separate from detections */}
-      {mioClassification && (
-        <div className="card-surface rounded-2xl p-4">
-          <p className="flex items-center gap-2 text-sm font-semibold">
-            <Heart className="size-4 text-primary" />
-            MIO — Diş Eti / Periodontal Analiz
-          </p>
-          <div className="mt-3 flex items-center gap-3">
-            <Badge variant={mioClassification.class_name === 'healthy' ? 'muted' : mioClassification.class_name === 'gingivitis' ? 'primary' : 'high'}>
-              {mioClassification.class_name.charAt(0).toUpperCase() + mioClassification.class_name.slice(1)}
-            </Badge>
-            <span className="text-sm text-muted-foreground">
-              {(mioClassification.confidence * 100).toFixed(1)}% confidence
+    <div className="relative flex h-full min-h-0 flex-col">
+      <ImageWorkspace
+        modality="intraoral"
+        image={image}
+        findings={visible}
+        adjust={adjust}
+        onAdjust={setIntraoralAdjust}
+        onReset={resetIntraoralAdjust}
+        onUpload={(url) => void runIntraoral(url)}
+        analyzing={analyzing}
+        dropLabel={t(lang, "common.dropIntra")}
+        leading={
+          mioClassification ? (
+            <span className="inline-flex items-center gap-2 text-xs">
+              <Heart className="size-3.5 text-primary" />
+              <Badge
+                variant={
+                  mioClassification.class_name === "healthy"
+                    ? "muted"
+                    : mioClassification.class_name === "gingivitis"
+                      ? "primary"
+                      : "high"
+                }
+              >
+                {mioClassification.class_name}
+              </Badge>
             </span>
+          ) : null
+        }
+        trailing={
+          <div className="tab-track">
+            {(
+              [
+                ["film", "workspace.film"],
+                ["findings", "workspace.findings"],
+                ["report", "workspace.report"],
+              ] as const
+            ).map(([id, key]) => (
+              <button
+                key={id}
+                type="button"
+                data-active={pane === id}
+                className="tab-btn"
+                onClick={() => setPane(id)}
+              >
+                {t(lang, key)}
+                {id === "findings" && visible.length > 0 ? (
+                  <span className="tabular-nums">{visible.length}</span>
+                ) : null}
+              </button>
+            ))}
           </div>
-        </div>
-      )}
-      
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-3">
-          <ImageWorkspace
-            modality="intraoral"
-            image={image}
-            findings={overlayFindings}
-            adjust={adjust}
-            onAdjust={setIntraoralAdjust}
-            onReset={resetIntraoralAdjust}
-            onUpload={(url) => void runIntraoral(url)}
-            analyzing={analyzing}
-            dropLabel={t(lang, "common.dropIntra")}
-          />
-        </div>
-        <FindingsPanel modality="intraoral" findings={visible} />
-      </div>
+        }
+        overlay={
+          pane === "film" ? null : (
+            <aside className="absolute inset-y-0 right-0 z-20 flex h-full w-[min(100%,22rem)] min-w-64 flex-col overflow-hidden border-l border-border bg-card">
+              <FindingsPanel
+                modality="intraoral"
+                findings={visible}
+                forcedTab={pane === "report" ? "report" : "ai"}
+                withheldCount={gated.withheld.length}
+              />
+            </aside>
+          )
+        }
+      />
     </div>
   );
 }

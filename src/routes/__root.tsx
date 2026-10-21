@@ -13,7 +13,7 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: APP_NAME },
-      { name: "theme-color", content: "#2F6FED" },
+      { name: "theme-color", content: "#146C73" },
       {
         name: "description",
         content:
@@ -32,7 +32,7 @@ export const Route = createRootRoute({
 
 function RootDocument() {
   return (
-    <html lang="en" className="antialiased" suppressHydrationWarning>
+    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>

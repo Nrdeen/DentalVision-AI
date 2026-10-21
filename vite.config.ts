@@ -142,6 +142,14 @@ export default defineConfig(({ command, isPreview }) => ({
     host: "0.0.0.0",
     port: 8080,
     strictPort: true,
+    preTransformRequests: false,
+    watch: {
+      ignored: ["**/data/**", "**/runs/**", "**/models/**", "**/docs/**"],
+    },
+  },
+  optimizeDeps: {
+    noDiscovery: true,
+    include: ["react", "react-dom"],
   },
   preview: {
     host: "127.0.0.1",
@@ -158,7 +166,7 @@ export default defineConfig(({ command, isPreview }) => ({
     // PWA head + ?install=1 tutorial page; runs before Start/Nitro.
     grokPwaPlugin(),
     tailwindcss(),
-    tanstackStart(),
+    tanstackStart({ spa: { enabled: true } }),
     ...(command === "build" || isPreview
       ? [
           nitro({

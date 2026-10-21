@@ -52,7 +52,7 @@ function ReportPage() {
     },
     [xrayFindings, intraoralFindings, xrayImage, intraoralImage],
   );
-  const [tab, setTab] = useState<"fusion" | "report">("fusion");
+  const [tab, setTab] = useState<"fusion" | "report">("report");
   const [mode, setMode] = useState<"compare" | "matched" | "all">("compare");
 
   const overall =
@@ -119,7 +119,27 @@ function ReportPage() {
         </div>
       </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="tab-track w-fit">
+        {(
+          [
+            ["fusion", "report.fusion"],
+            ["report", "common.report"],
+          ] as const
+        ).map(([id, key]) => (
+          <button
+            key={id}
+            type="button"
+            data-active={tab === id}
+            className="tab-btn"
+            onClick={() => setTab(id)}
+          >
+            {id === "fusion" ? <Brain className="size-3.5" /> : <FileText className="size-3.5" />}
+            {t(lang, key)}
+          </button>
+        ))}
+      </div>
+
+      {tab === "report" ? (
         <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <ModalityPane
@@ -135,7 +155,7 @@ function ReportPage() {
               findings={iList}
             />
           </div>
-          <div className="flex flex-wrap gap-1 rounded-2xl bg-secondary p-1">
+          <div className="tab-track w-full max-w-lg">
             {(
               [
                 ["compare", "report.compare"],
@@ -146,11 +166,9 @@ function ReportPage() {
               <button
                 type="button"
                 key={id}
+                data-active={mode === id}
+                className="tab-btn flex-1"
                 onClick={() => setMode(id)}
-                className={cn(
-                  "flex-1 rounded-xl px-3 py-2 text-sm font-medium",
-                  mode === id ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-                )}
               >
                 {t(lang, key)}
               </button>
@@ -208,33 +226,8 @@ function ReportPage() {
             </div>
           </div>
         </div>
-
-        <aside className="card-surface rounded-2xl p-3">
-          <div className="mb-3 flex rounded-xl bg-secondary p-1">
-            <button
-              type="button"
-              onClick={() => setTab("fusion")}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold",
-                tab === "fusion" ? "bg-card text-primary shadow-sm" : "text-muted-foreground",
-              )}
-            >
-              <Brain className="size-3.5" />
-              {t(lang, "report.fusion")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("report")}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold",
-                tab === "report" ? "bg-card text-primary shadow-sm" : "text-muted-foreground",
-              )}
-            >
-              <FileText className="size-3.5" />
-              {t(lang, "common.report")}
-            </button>
-          </div>
-
+      ) : (
+        <aside className="card-surface rounded-xl p-4">
           <div className="mb-3">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               <Brain className="size-4 text-primary" />
@@ -289,7 +282,7 @@ function ReportPage() {
             {t(lang, "common.downloadPdf")}
           </Button>
         </aside>
-      </div>
+      )}
     </div>
   );
 }
@@ -350,7 +343,7 @@ function ModalityPane({
         </Badge>
       </div>
       <div className="relative aspect-16/10 bg-foreground">
-        {image ? <img src={image} alt="" className="size-full object-cover" /> : null}
+        {image ? <img src={image} alt="" className="size-full object-contain" /> : null}
         {image ? <FindingOverlay findings={findings} lang={lang} compact /> : null}
       </div>
       <div className="space-y-2 p-3">

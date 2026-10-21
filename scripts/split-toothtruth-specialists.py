@@ -113,7 +113,8 @@ def write_yaml(dest: Path, names: dict[int, str], wanted: set[str], yaml_name: s
     ordered = sorted({route_class(i, n).key for i, n in names.items() if route_class(i, n).key in wanted})
     body = [
         f"# Specialist subset generated from {dest.parent.name}",
-        f"path: {dest.as_posix()}",
+        "# path is rewritten at train time to this folder (E: or G:).",
+        f"path: {dest.resolve().as_posix()}",
         "train: train/images",
         "val: valid/images",
         "test: test/images",
