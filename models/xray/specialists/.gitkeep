@@ -1,0 +1,3 @@
+# Place specialist checkpoints here when they are trained:
+#   impaction.pt  restorations.pt  missing.pt  caries.pt  periapical.pt  bone.pt
+# infer-xray.py loads any file that exists and falls back to models/xray/best.pt.

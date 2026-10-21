@@ -3,9 +3,10 @@ node_modules
 
 # Data and models (datasets)
 data/
-models/
 weights/
 *.pt
+!models/
+!models/**/*.pt
 runs/
 artifacts/
 

@@ -1,0 +1,23 @@
+# vzrad2 dataset configuration for YOLO training
+# This is a template - after downloading the dataset, update the paths
+
+path: data/vzrad2  # Update this to the actual downloaded path
+
+train: train/images
+val: valid/images
+test: test/images
+
+# Number of classes (93 original classes from vzrad2)
+# We will map these to the 4 main classes we need:
+# 0: Caries
+# 1: Deep Caries
+# 2: Periapical Lesion
+# 3: Impacted Tooth
+
+nc: 4
+
+names:
+  0: Caries
+  1: Deep Caries
+  2: Periapical Lesion
+  3: Impacted Tooth

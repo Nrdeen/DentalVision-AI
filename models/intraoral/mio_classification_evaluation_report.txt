@@ -1,0 +1,61 @@
+============================================================
+MIO CLASSIFICATION EVALUATION REPORT
+============================================================
+
+Date: 2026-10-05 23:59:12
+Model: models/intraoral/mio_classification_best.pt
+Test Dataset: data/intraoral/processed/MIO_classification\test
+Device: cuda
+
+============================================================
+OVERALL RESULTS
+============================================================
+
+Test Samples: 94
+Overall Accuracy: 77.66%
+
+============================================================
+PER-CLASS METRICS
+============================================================
+
+GINGIVITIS:
+  Precision: 0.7250
+  Recall: 0.7632
+  F1-Score: 0.7436
+  Support: 38.0
+
+HEALTHY:
+  Precision: 0.7500
+  Recall: 0.7742
+  F1-Score: 0.7619
+  Support: 31.0
+
+PERIODONTITIS:
+  Precision: 0.9091
+  Recall: 0.8000
+  F1-Score: 0.8511
+  Support: 25.0
+
+============================================================
+CONFUSION MATRIX
+============================================================
+
+Predicted ->
+Actual     gingivit healthyperiodon
+gingivit       29       8       1
+ healthy        6      24       1
+periodon        5       0      20
+
+============================================================
+CLASSIFICATION REPORT (DETAILED)
+============================================================
+
+               precision    recall  f1-score   support
+
+   gingivitis       0.72      0.76      0.74        38
+      healthy       0.75      0.77      0.76        31
+periodontitis       0.91      0.80      0.85        25
+
+     accuracy                           0.78        94
+    macro avg       0.79      0.78      0.79        94
+ weighted avg       0.78      0.78      0.78        94
