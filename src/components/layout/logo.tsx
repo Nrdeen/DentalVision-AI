@@ -12,16 +12,18 @@ export function ToothMark({ className, ...props }: SVGProps<SVGSVGElement>) {
   );
 }
 
-export function BrandLockup({ compact = false }: { compact?: boolean }) {
+export function BrandLockup({ compact = false, subtitle }: { compact?: boolean; subtitle?: string }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+      <span className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
         <ToothMark className="size-4" />
       </span>
       <span className="min-w-0">
         <span className="block text-[0.95rem] font-semibold tracking-tight text-foreground">DentaAI</span>
         {!compact ? (
-          <span className="block truncate text-xs text-muted-foreground">Clinical imaging</span>
+          <span className="block max-w-[14rem] truncate text-[11px] text-muted-foreground">
+            {subtitle ?? "Clinical imaging"}
+          </span>
         ) : null}
       </span>
     </div>

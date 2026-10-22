@@ -17,6 +17,9 @@ import traceback
 CARIES_MODEL_PATH = "runs/detect/runs/intraoral/baseline-yolo11n-3/weights/best.pt"
 MIO_MODEL_PATH = "models/intraoral/mio_classification_best.pt"
 ALPHADENT_MODEL_PATH = "runs/segment/runs/segment/train-alphadent/weights/best.pt"
+# Val from train-alphadent/results.csv epoch 79: box mAP50 41.3%, mask mAP50 39.8%.
+# Product gate is mAP50 >= 90%. Keep weights on disk; do not load or return findings.
+ALPHADENT_ENABLED = False
 IMAGE_SIZE = 224
 # Must match torchvision ImageFolder order used in train-mio-classification.py (alphabetical).
 MIO_CLASSES = ["gingivitis", "healthy", "periodontitis"]
@@ -56,9 +59,14 @@ def load_models():
     mio_model.load_state_dict(torch.load(MIO_MODEL_PATH, map_location="cpu"))
     mio_model.eval()
     
-    # Load AlphaDent segmentation model
-    print(f"[intraoral-infer] Loading AlphaDent model from {ALPHADENT_MODEL_PATH}")
-    alphadent_model = YOLO(ALPHADENT_MODEL_PATH)
+    if ALPHADENT_ENABLED:
+        print(f"[intraoral-infer] Loading AlphaDent model from {ALPHADENT_MODEL_PATH}")
+        alphadent_model = YOLO(ALPHADENT_MODEL_PATH)
+    else:
+        alphadent_model = None
+        print(
+            "[intraoral-infer] AlphaDent withheld (val mAP50 41.3% box / 39.8% mask, below 90% gate)"
+        )
     
     # MIO transform
     mio_transform = transforms.Compose([
@@ -107,7 +115,9 @@ def run_mio_classification(image_path):
     }
 
 def run_alphadent_segmentation(image_path):
-    """Run AlphaDent segmentation."""
+    """Run AlphaDent segmentation. No-op while the specialist is below the 90% gate."""
+    if not ALPHADENT_ENABLED or alphadent_model is None:
+        return []
     results = alphadent_model(
         image_path,
         conf=0.25,
@@ -325,7 +335,10 @@ class InferenceHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         """Health check endpoint."""
         if self.path == "/health":
-            self.send_json({"ok": True})
+            self.send_json({
+                "ok": True,
+                "alphadent": ALPHADENT_ENABLED,
+            })
         else:
             self.send_json({"ok": False, "error": "Not found"}, 404)
     
@@ -360,7 +373,6 @@ class InferenceHandler(BaseHTTPRequestHandler):
             
             
             try:
-                # Run all three models
                 caries_detections = run_caries_detection(temp_path)
                 mio_classification = run_mio_classification(temp_path)
                 alphadent_detections = run_alphadent_segmentation(temp_path)
@@ -390,7 +402,7 @@ class InferenceHandler(BaseHTTPRequestHandler):
             for detection in caries_detections:
                 findings.append(map_caries_detection(detection))
             
-            # Add AlphaDent segmentations (actual detections with real bboxes)
+            # AlphaDent stays off until val mAP50 clears 90%.
             for detection in alphadent_detections:
                 findings.append(map_alphadent_segmentation(detection))
             

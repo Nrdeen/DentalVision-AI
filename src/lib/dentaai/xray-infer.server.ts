@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { annotateFinding, routeXrayClass, severityOf } from "./ensemble";
-import type { Finding } from "./types";
+import type { Finding, XrayQuality, XrayQualityFlag, XrayQualityLevel } from "./types";
 
 const INFER_PORT = Number(process.env.XRAY_INFER_PORT || 8765);
 const INFER_HOST = "127.0.0.1";
@@ -21,7 +21,41 @@ type InferPayload = {
   error?: string;
   weights?: string | null;
   detections?: RawDetection[];
+  quality?: {
+    level?: string;
+    flags?: string[];
+    width?: number;
+    height?: number;
+    prepared?: boolean;
+    inverted?: boolean;
+    cropped?: boolean;
+  };
 };
+
+function parseQuality(raw: InferPayload["quality"]): XrayQuality | null {
+  if (!raw) return null;
+  const level: XrayQualityLevel =
+    raw.level === "poor" || raw.level === "fair" || raw.level === "good" ? raw.level : "fair";
+  const allowed: XrayQualityFlag[] = [
+    "small",
+    "blur",
+    "dark",
+    "bright",
+    "compressed",
+    "crop",
+    "inverted",
+    "narrow",
+  ];
+  return {
+    level,
+    flags: (raw.flags ?? []).filter((f): f is XrayQualityFlag => allowed.includes(f as XrayQualityFlag)),
+    width: Number(raw.width) || 0,
+    height: Number(raw.height) || 0,
+    prepared: Boolean(raw.prepared),
+    inverted: Boolean(raw.inverted),
+    cropped: Boolean(raw.cropped),
+  };
+}
 
 let child: ChildProcess | null = null;
 let ready: Promise<void> | null = null;
@@ -206,6 +240,7 @@ export async function handleXrayInfer(request: Request): Promise<Response> {
       weights: payload.weights ?? null,
       findings,
       count: findings.length,
+      quality: parseQuality(payload.quality),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

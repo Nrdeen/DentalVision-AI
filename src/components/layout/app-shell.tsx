@@ -23,17 +23,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const workspace = WORKSPACE.has(pathname);
 
   return (
-    <div className="min-h-dvh bg-background">
-      <header className="sticky top-0 z-40 border-b border-border bg-card">
-        <div className="flex h-14 items-center gap-3 px-3 lg:px-5">
+    <div className="min-h-dvh bg-[#f7f8fa]">
+      <header className="sticky top-0 z-40 border-b border-[#e8edf2] bg-white">
+        <div className="flex h-16 items-center gap-4 px-4 lg:px-6">
           <Link to="/" className="shrink-0">
-            <BrandLockup compact />
+            <BrandLockup subtitle={t(lang, "brand.subtitle")} />
           </Link>
 
-          <nav
-            aria-label={t(lang, "nav.home")}
-            className="tab-track min-w-0 flex-1 overflow-x-auto"
-          >
+          <nav aria-label={t(lang, "nav.home")} className="flex min-w-0 flex-1 items-center justify-center gap-0.5 overflow-x-auto">
             {NAV.map((item) => {
               const active = pathname === item.to;
               const Icon = item.icon;
@@ -41,8 +38,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link
                   key={item.to}
                   to={item.to}
-                  data-active={active}
-                  className="tab-btn shrink-0"
+                  className={cn(
+                    "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium",
+                    active ? "bg-[#eef4f8] text-foreground" : "text-muted-foreground hover:bg-[#f3f6f8] hover:text-foreground",
+                  )}
                 >
                   <Icon className="size-3.5" />
                   {t(lang, item.key)}
@@ -51,18 +50,22 @@ export function AppShell({ children }: { children: ReactNode }) {
             })}
           </nav>
 
-          <div className="tab-track shrink-0">
-            {(["en", "tr"] as const).map((code) => (
-              <button
-                key={code}
-                type="button"
-                data-active={lang === code}
-                className="tab-btn px-3"
-                onClick={() => setLanguage(code)}
-              >
-                {code.toUpperCase()}
-              </button>
-            ))}
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="flex rounded-lg bg-[#f3f6f8] p-0.5">
+              {(["en", "tr"] as const).map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  className={cn(
+                    "h-7 rounded-md px-2 text-xs font-semibold",
+                    lang === code ? "bg-white text-foreground shadow-sm" : "text-muted-foreground",
+                  )}
+                  onClick={() => setLanguage(code)}
+                >
+                  {code.toUpperCase()}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </header>

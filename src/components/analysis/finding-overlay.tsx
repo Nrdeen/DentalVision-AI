@@ -280,7 +280,7 @@ export function FindingOverlay({
   };
 
   return (
-    <div ref={rootRef} className="pointer-events-none absolute inset-0">
+    <div ref={rootRef} data-finding="root" className="pointer-events-none absolute inset-0">
       {findings.map((f) => {
         if (f.source !== "xray" || (f.mask && f.mask.length > 0) || contours[f.id]) return null;
         const active = focusId === f.id;

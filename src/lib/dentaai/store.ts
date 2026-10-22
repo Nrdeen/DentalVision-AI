@@ -11,6 +11,7 @@ import {
   type ImageAdjust,
   type Lang,
   type MIOClassification,
+  type XrayQuality,
 } from "./types";
 
 /**
@@ -110,9 +111,10 @@ type InferResponse = {
   findings?: Finding[];
   weights?: string | null;
   mio_classification?: MIOClassification;
+  quality?: XrayQuality | null;
 };
 
-async function requestXrayInference(image: string): Promise<Finding[]> {
+async function requestXrayInference(image: string): Promise<{ findings: Finding[]; quality: XrayQuality | null }> {
   const res = await fetch("/api/xray-infer", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -122,7 +124,7 @@ async function requestXrayInference(image: string): Promise<Finding[]> {
   if (!res.ok || !payload.ok) {
     throw new Error(payload.error || `Inference failed (${res.status})`);
   }
-  return payload.findings ?? [];
+  return { findings: payload.findings ?? [], quality: payload.quality ?? null };
 }
 
 async function requestIntraoralInference(image: string): Promise<{ findings: Finding[]; mioClassification: MIOClassification | null }> {
@@ -159,6 +161,7 @@ export interface AppState {
   xrayImage: string | null;
   intraoralImage: string | null;
   xrayFindings: Finding[];
+  xrayQuality: XrayQuality | null;
   intraoralFindings: Finding[];
   mioClassification: MIOClassification | null;
   xrayAdjust: ImageAdjust;
@@ -201,6 +204,7 @@ export const useApp = create<AppState>()((set, get) => ({
   xrayImage: SAMPLE_XRAY,
   intraoralImage: SAMPLE_INTRAORAL,
   xrayFindings: [],
+  xrayQuality: null,
   intraoralFindings: [],
   mioClassification: null,
   xrayAdjust: { ...DEFAULT_ADJUST },
@@ -215,7 +219,7 @@ export const useApp = create<AppState>()((set, get) => ({
       patientAge,
       ...(adultPanoramicAllowed(patientAge)
         ? {}
-        : { xrayFindings: [], selectedFindingId: null, hiddenFindingIds: [] }),
+        : { xrayFindings: [], xrayQuality: null, selectedFindingId: null, hiddenFindingIds: [] }),
     })),
   setThreshold: (threshold) => set({ threshold }),
   setOverlayDefault: (overlayDefault) =>
@@ -248,6 +252,7 @@ export const useApp = create<AppState>()((set, get) => ({
       xrayImage: null,
       intraoralImage: null,
       xrayFindings: [],
+      xrayQuality: null,
       intraoralFindings: [],
       selectedFindingId: null,
       hiddenFindingIds: [],
@@ -261,6 +266,7 @@ export const useApp = create<AppState>()((set, get) => ({
         analyzing: null,
         xrayImage: image,
         xrayFindings: [],
+        xrayQuality: null,
         selectedFindingId: null,
         hiddenFindingIds: [],
       });
@@ -272,24 +278,25 @@ export const useApp = create<AppState>()((set, get) => ({
       analyzing: "xray",
       xrayImage: image,
       xrayFindings: [],
+      xrayQuality: null,
       selectedFindingId: null,
       hiddenFindingIds: [],
       xrayAdjust: { ...DEFAULT_ADJUST },
     });
     try {
-      const findings = await requestXrayInference(image);
+      const { findings, quality } = await requestXrayInference(image);
       if (job !== xrayJob) return;
       // API now provides source field, no need to add it here
       // Apply IoU dedup to remove overlapping detections of the same class.
       const deduplicated = withSingleEstimatedTeeth(deduplicateFindings(findings));
-      set({ analyzing: null, xrayFindings: deduplicated });
+      set({ analyzing: null, xrayFindings: deduplicated, xrayQuality: quality });
       if (deduplicated.length === 0) {
         toast.message("No detections above the model threshold for this image.");
       }
     } catch (err) {
       if (job !== xrayJob) return;
       const message = err instanceof Error ? err.message : String(err);
-      set({ analyzing: null, xrayFindings: [] });
+      set({ analyzing: null, xrayFindings: [], xrayQuality: null });
       toast.error(message);
     }
   },

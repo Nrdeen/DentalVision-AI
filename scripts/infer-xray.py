@@ -32,6 +32,7 @@ _MODELS: dict[str, Any] = {}
 _WEIGHTS: Path | None = None
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from xray_clinic_ingest import prepare as prepare_clinic, remap_xyxyn  # noqa: E402
 from xray_taxonomy import SPECIALIST_WEIGHTS, route_class, should_emit  # noqa: E402
 
 
@@ -127,7 +128,7 @@ def decode_image(image: str) -> Any:
     return np.array(img)
 
 
-def _collect(model: Any, arr: Any, conf: float) -> list[dict[str, Any]]:
+def _collect(model: Any, arr: Any, conf: float, source_id: str = "legacy") -> list[dict[str, Any]]:
     detections: list[dict[str, Any]] = []
     results = model.predict(source=arr, imgsz=640, conf=conf, verbose=False)
     if not results:
@@ -146,6 +147,8 @@ def _collect(model: Any, arr: Any, conf: float) -> list[dict[str, Any]]:
         name = str(names.get(cls_id, cls_id))
         score = float(confs[i])
         routed = route_class(cls_id, name)
+        if source_id != "legacy" and routed.specialist != source_id:
+            continue
         detections.append(
             {
                 "cls": cls_id,
@@ -168,10 +171,21 @@ def _collect(model: Any, arr: Any, conf: float) -> list[dict[str, Any]]:
 def predict(image: str, conf: float = 0.15) -> dict[str, Any]:
     models = load_models()
     arr = decode_image(image)
+    clinic = prepare_clinic(arr)
+    prepared = clinic["image"]
+    quality = clinic["quality"]
+    boosts: dict[str, float] = quality.get("boosts") or {}
     detections: list[dict[str, Any]] = []
-    for model in models.values():
-        detections.extend(_collect(model, arr, conf))
-    kept = [d for d in detections if should_emit(route_class(d["cls"], d["name"]), d["conf"], conf)]
+    for source_id, model in models.items():
+        detections.extend(_collect(model, prepared, conf, source_id=source_id))
+    kept: list[dict[str, Any]] = []
+    for d in detections:
+        d["xyxyn"] = remap_xyxyn(d["xyxyn"], clinic["origin"], clinic["crop"])
+        routed = route_class(d["cls"], d["name"])
+        extra = float(boosts.get(routed.specialist, 0.0))
+        d["floorBoost"] = extra
+        if should_emit(routed, d["conf"], conf, extra=extra):
+            kept.append(d)
     return {
         "ok": True,
         "weights": str(_WEIGHTS) if _WEIGHTS else None,
@@ -179,6 +193,16 @@ def predict(image: str, conf: float = 0.15) -> dict[str, Any]:
         "rawCount": len(detections),
         "count": len(kept),
         "detections": kept,
+        "quality": {
+            "level": quality.get("level"),
+            "flags": quality.get("flags") or [],
+            "width": quality.get("width"),
+            "height": quality.get("height"),
+            "prepared": True,
+            "inverted": bool(quality.get("inverted")),
+            "cropped": bool(quality.get("cropped")),
+            "boosts": boosts,
+        },
     }
 
 

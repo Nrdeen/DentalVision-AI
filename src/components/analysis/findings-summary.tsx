@@ -20,9 +20,11 @@ const SEVERITY_BG: Record<Severity, string> = {
 export function FindingsSummary({
   findings,
   withheldCount = 0,
+  compact = false,
 }: {
   findings: Finding[];
   withheldCount?: number;
+  compact?: boolean;
 }) {
   const lang = useApp((s) => s.language);
   const selectedId = useApp((s) => s.selectedFindingId);
@@ -63,7 +65,10 @@ export function FindingsSummary({
   return (
     <section
       aria-label={tr ? "Bulgu özeti" : "Findings summary"}
-      className="card-surface flex flex-col gap-4 rounded-2xl p-4 lg:flex-row lg:items-center lg:gap-6"
+      className={cn(
+        "card-surface flex flex-col gap-4 rounded-2xl p-4",
+        compact ? "h-full min-h-0 overflow-auto" : "lg:flex-row lg:items-center lg:gap-6",
+      )}
     >
       <div className="flex items-center gap-4 lg:w-52 lg:shrink-0">
         <p className="text-4xl font-bold leading-none tabular-nums">{findings.length}</p>

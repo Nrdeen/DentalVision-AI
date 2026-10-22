@@ -191,11 +191,23 @@ function QuadrantPanel({
   );
 }
 
-export function DentalChart({ findings, tr }: { findings: Finding[]; tr: boolean }) {
+export function DentalChart({
+  findings,
+  tr,
+  compact = false,
+}: {
+  findings: Finding[];
+  tr: boolean;
+  compact?: boolean;
+}) {
   const selectedId = useApp((s) => s.selectedFindingId);
   const select = useApp((s) => s.setSelectedFindingId);
 
-  if (findings.length === 0) return null;
+  if (findings.length === 0) {
+    return compact ? (
+      <p className="px-1 text-xs text-muted-foreground">{tr ? "İşaretli diş yok." : "No marked teeth yet."}</p>
+    ) : null;
+  }
 
   const teeth = new Map<number, Mark>();
   const quads = new Map<number, Mark>();
@@ -244,7 +256,7 @@ export function DentalChart({ findings, tr }: { findings: Finding[]; tr: boolean
     });
 
   return (
-    <div className="mb-3 rounded-xl border border-border bg-card p-3">
+    <div className={cn(compact ? "rounded-xl bg-transparent p-0" : "mb-3 rounded-xl border border-border bg-card p-3")}>
       <div className="mb-1 flex items-center justify-between">
         <p className="text-xs font-semibold">{tr ? "Diş şeması (FDI)" : "Dental chart (FDI)"}</p>
         <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
@@ -256,14 +268,16 @@ export function DentalChart({ findings, tr }: { findings: Finding[]; tr: boolean
           ))}
         </div>
       </div>
-      <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
-        {typeLegend.map((f) => (
-          <span key={f.colorVar} className="inline-flex items-center gap-1">
-            <span className="size-1.5 rounded-full" style={{ background: `var(${f.colorVar})` }} />
-            {findingLabel(tr ? "tr" : "en", f.key)}
-          </span>
-        ))}
-      </div>
+      {compact ? null : (
+        <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
+          {typeLegend.map((f) => (
+            <span key={f.colorVar} className="inline-flex items-center gap-1">
+              <span className="size-1.5 rounded-full" style={{ background: `var(${f.colorVar})` }} />
+              {findingLabel(tr ? "tr" : "en", f.key)}
+            </span>
+          ))}
+        </div>
+      )}
       <svg viewBox={`0 0 ${CHART_W} 158`} className="w-full" role="group" aria-label="FDI dental chart">
         <path
           d={`M ${PAD - 2} 72 Q ${CHART_W / 2} 2 ${CHART_W - PAD + 2} 72 L ${CHART_W - PAD + 2} 79 Q ${CHART_W / 2} 18 ${PAD - 2} 79 Z`}
@@ -301,14 +315,14 @@ export function DentalChart({ findings, tr }: { findings: Finding[]; tr: boolean
         {row(UPPER, true)}
         {row(LOWER, false)}
       </svg>
-      {[...teeth.values()].some((m) => m.estimated) ? (
+      {!compact && [...teeth.values()].some((m) => m.estimated) ? (
         <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
           {tr
             ? "≈ Kesikli çizgili dişler: numara kemer geometrisinden tahmin edilmiştir (model çıktısı değildir)."
             : "≈ Dashed teeth: numbers are estimated from arch geometry (not model output)."}
         </p>
       ) : null}
-      {quads.size > 0 ? (
+      {!compact && quads.size > 0 ? (
         <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
           {tr
             ? "Renkli bölgeler, bulgunun görüntüdeki konumundan türetilir; model diş numarası üretmez."

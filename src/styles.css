@@ -61,7 +61,7 @@
   --shadow-toolbar:
     0 0 0 1px rgba(21, 32, 40, 0.06),
     0 1px 2px rgba(21, 32, 40, 0.04);
-  --header-h: 3.5rem;
+  --header-h: 4rem;
 
   --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -156,6 +156,58 @@
 
 .finding-card-in {
   animation: finding-card-in 180ms var(--ease-smooth-out);
+}
+
+.ws-page {
+  background: #f7f8fa;
+}
+
+.ws-caselist {
+  background: #ffffff;
+  border-right: 1px solid #e8edf2;
+}
+
+.ws-casebar,
+.ws-panel,
+.ws-dock,
+.ws-rail {
+  background: #ffffff;
+  border: 1px solid #e8edf2;
+  border-radius: 1rem;
+  box-shadow: 0 8px 24px rgba(22, 36, 48, 0.04);
+}
+
+.ws-panel {
+  overflow: hidden;
+}
+
+.ws-film {
+  background: #ffffff;
+  border: 1px solid #e8edf2;
+  border-radius: 1.35rem;
+  box-shadow: 0 8px 24px rgba(22, 36, 48, 0.04);
+}
+
+.ws-stage {
+  background: var(--color-film);
+}
+
+.ws-case-row[data-active="true"] {
+  background: #eef5fb;
+}
+
+.tab-track-film {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tab-track-film .tab-btn {
+  color: rgba(232, 236, 233, 0.62);
+}
+
+.tab-track-film .tab-btn[data-active="true"] {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f7f8f6;
+  box-shadow: none;
 }
 
 ::-webkit-scrollbar {

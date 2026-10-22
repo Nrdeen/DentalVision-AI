@@ -38,6 +38,7 @@ ALIASES: list[tuple[str, Route]] = [
     ("root canal obturation", Route("rootCanal", "xray-restorations", "show")),
     ("root canal filling", Route("rootCanal", "xray-restorations", "show")),
     ("root canal treatment", Route("rootCanal", "xray-restorations", "show")),
+    ("root canal", Route("rootCanal", "xray-restorations", "show")),
     ("rct", Route("rootCanal", "xray-restorations", "show")),
     ("kanal", Route("rootCanal", "xray-restorations", "show")),
     ("post - core", Route("rootCanal", "xray-restorations", "show")),
@@ -97,7 +98,7 @@ ENABLED = {
     "xray-impaction": True,
     "xray-implant": True,
     "xray-restorations": True,
-    "xray-missing": False,
+    "xray-missing": True,
     "xray-caries": False,
     "xray-periapical": False,
     "xray-bone": False,
@@ -115,7 +116,8 @@ SPECIALIST_WEIGHTS = {
 
 
 def _norm(name: str) -> str:
-    return " ".join(name.lower().replace("_", " ").split())
+    spaced = re.sub(r"([a-z])([A-Z])", r"\1 \2", name)
+    return " ".join(spaced.lower().replace("_", " ").split())
 
 
 def _matches(haystack: str, alias: str) -> bool:
@@ -136,10 +138,10 @@ def route_class(cls_id: int, name: str) -> Route:
     return Route("other", "xray-caries", "withhold")
 
 
-def should_emit(route: Route, conf: float, user_floor: float) -> bool:
+def should_emit(route: Route, conf: float, user_floor: float, extra: float = 0.0) -> bool:
     if route.policy != "show":
         return False
     if not ENABLED.get(route.specialist, False):
         return False
-    floor = max(user_floor, FLOORS.get(route.specialist, user_floor))
+    floor = max(user_floor, FLOORS.get(route.specialist, user_floor) + extra)
     return conf >= floor

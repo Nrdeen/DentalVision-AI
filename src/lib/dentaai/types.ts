@@ -82,6 +82,28 @@ export interface Finding {
   withheldReason?: "low-confidence" | "anatomy" | "unreliable-class" | "below-user-threshold";
 }
 
+export type XrayQualityLevel = "good" | "fair" | "poor";
+
+export type XrayQualityFlag =
+  | "small"
+  | "blur"
+  | "dark"
+  | "bright"
+  | "compressed"
+  | "crop"
+  | "inverted"
+  | "narrow";
+
+export interface XrayQuality {
+  level: XrayQualityLevel;
+  flags: XrayQualityFlag[];
+  width: number;
+  height: number;
+  prepared: boolean;
+  inverted?: boolean;
+  cropped?: boolean;
+}
+
 export interface ImageAdjust {
   brightness: number;
   contrast: number;

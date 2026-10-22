@@ -1,7 +1,10 @@
 import {
   Contrast,
   Download,
+  Expand,
   FlipHorizontal,
+  Hand,
+  Images,
   Loader2,
   Maximize2,
   Minus,
@@ -10,7 +13,7 @@ import {
   SunMedium,
   Upload,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { FindingOverlay } from "@/components/analysis/finding-overlay";
 import { Button } from "@/components/ui/button";
@@ -20,18 +23,18 @@ import type { Finding, ImageAdjust, Modality, ViewId } from "@/lib/dentaai/types
 import { useApp } from "@/lib/dentaai/store";
 import { fileToDataUrl, cn } from "@/lib/utils";
 
-const XRAY_VIEWS: { id: ViewId; title: string }[] = [
-  { id: "overview", title: "views.overview" },
-  { id: "health", title: "views.health" },
-  { id: "ai", title: "views.ai" },
-  { id: "bone", title: "views.bone" },
+const XRAY_VIEWS: { id: ViewId; title: string; hint: string }[] = [
+  { id: "overview", title: "views.overview", hint: "views.overviewHint" },
+  { id: "health", title: "views.health", hint: "views.healthHint" },
+  { id: "ai", title: "views.ai", hint: "views.aiHint" },
+  { id: "bone", title: "views.bone", hint: "views.boneHint" },
 ];
 
-const INTRA_VIEWS: { id: ViewId; title: string }[] = [
-  { id: "overview", title: "views.intraOverview" },
-  { id: "health", title: "views.surface" },
-  { id: "ai", title: "views.gums" },
-  { id: "bone", title: "views.intraAi" },
+const INTRA_VIEWS: { id: ViewId; title: string; hint: string }[] = [
+  { id: "overview", title: "views.intraOverview", hint: "views.intraOverviewHint" },
+  { id: "health", title: "views.surface", hint: "views.surfaceHint" },
+  { id: "ai", title: "views.gums", hint: "views.gumsHint" },
+  { id: "bone", title: "views.intraAi", hint: "views.intraAiHint" },
 ];
 
 function filterCss(adjust: ImageAdjust, view: ViewId) {
@@ -78,6 +81,12 @@ export function ImageWorkspace({
   leading,
   trailing,
   overlay,
+  variant = "default",
+  qualityBadge,
+  filmIndex,
+  filmCount,
+  onPrev,
+  onNext,
 }: {
   modality: Modality;
   image: string | null;
@@ -91,6 +100,12 @@ export function ImageWorkspace({
   leading?: ReactNode;
   trailing?: ReactNode;
   overlay?: ReactNode;
+  variant?: "default" | "workstation";
+  qualityBadge?: ReactNode;
+  filmIndex?: number;
+  filmCount?: number;
+  onPrev?: () => void;
+  onNext?: () => void;
 }) {
   const lang = useApp((s) => s.language);
   const selectedFindingId = useApp((s) => s.selectedFindingId);
@@ -99,8 +114,11 @@ export function ImageWorkspace({
   const inputRef = useRef<HTMLInputElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
+  const dragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const [frame, setFrame] = useState<ContainRect | null>(null);
   const views = modality === "xray" ? XRAY_VIEWS : INTRA_VIEWS;
+  const workstation = variant === "workstation";
+  const canPan = adjust.zoom > 1;
 
   const measureFrame = useCallback(() => {
     const stage = stageRef.current;
@@ -135,48 +153,67 @@ export function ImageWorkspace({
     onUpload(url);
   };
 
-  return (
-    <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="flex flex-wrap items-center gap-2 border-b border-border bg-card px-3 py-2">
-        {leading}
-        {trailing}
-        <ToolChip
-          icon={<Plus />}
-          label={t(lang, "common.zoom")}
-          active={adjust.zoom > 1}
-          onClick={() => onAdjust({ zoom: adjust.zoom > 1 ? 1 : 1.6, panX: 0, panY: 0 })}
-        />
-        {modality === "xray" ? (
-          <ToolChip
-            icon={<FlipHorizontal />}
-            label={t(lang, "common.invert")}
-            active={adjust.invert}
-            onClick={() => onAdjust({ invert: !adjust.invert })}
-          />
-        ) : (
-          <ToolChip
-            icon={<SunMedium />}
-            label={t(lang, "common.brightness")}
-            active={adjust.brightness !== 0}
-            onClick={() => onAdjust({ brightness: adjust.brightness === 0 ? 18 : 0 })}
-          />
-        )}
-        <ToolChip
-          icon={<Contrast />}
-          label={t(lang, "common.contrast")}
-          active={adjust.contrast !== 1}
-          onClick={() => onAdjust({ contrast: adjust.contrast === 1 ? 1.35 : 1 })}
-        />
-        {modality === "xray" ? (
-          <ToolChip
-            icon={<SunMedium />}
-            label={t(lang, "common.brightness")}
-            active={adjust.brightness !== 0}
-            onClick={() => onAdjust({ brightness: adjust.brightness === 0 ? 16 : 0 })}
-          />
-        ) : null}
-        <ToolChip icon={<RotateCcw />} label={t(lang, "common.reset")} onClick={onReset} />
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!canPan) return;
+    if ((event.target as HTMLElement).closest("[data-finding]")) return;
+    dragRef.current = { x: event.clientX, y: event.clientY, panX: adjust.panX, panY: adjust.panY };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
 
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    onAdjust({
+      panX: drag.panX + (event.clientX - drag.x),
+      panY: drag.panY + (event.clientY - drag.y),
+    });
+  };
+
+  const onPointerUp = () => {
+    dragRef.current = null;
+  };
+
+  const tools = (
+    <>
+      <ToolChip
+        icon={<Plus />}
+        label={`${t(lang, "common.zoom")} ${Math.round(adjust.zoom * 100)}%`}
+        active={adjust.zoom > 1}
+        onClick={() => onAdjust({ zoom: adjust.zoom > 1 ? 1 : 1.6, panX: 0, panY: 0 })}
+      />
+      {canPan ? <ToolChip icon={<Hand />} label={t(lang, "xray.ws.pan")} active /> : null}
+      {modality === "xray" ? (
+        <ToolChip
+          icon={<FlipHorizontal />}
+          label={t(lang, "common.invert")}
+          active={adjust.invert}
+          onClick={() => onAdjust({ invert: !adjust.invert })}
+        />
+      ) : (
+        <ToolChip
+          icon={<SunMedium />}
+          label={t(lang, "common.brightness")}
+          active={adjust.brightness !== 0}
+          onClick={() => onAdjust({ brightness: adjust.brightness === 0 ? 18 : 0 })}
+        />
+      )}
+      <ToolChip
+        icon={<Contrast />}
+        label={t(lang, "common.contrast")}
+        active={adjust.contrast !== 1}
+        onClick={() => onAdjust({ contrast: adjust.contrast === 1 ? 1.35 : 1 })}
+      />
+      {modality === "xray" ? (
+        <ToolChip
+          icon={<SunMedium />}
+          label={t(lang, "common.brightness")}
+          active={adjust.brightness !== 0}
+          onClick={() => onAdjust({ brightness: adjust.brightness === 0 ? 16 : 0 })}
+        />
+      ) : null}
+      <ToolChip icon={<RotateCcw />} label={t(lang, "common.reset")} onClick={onReset} />
+
+      {modality === "xray" ? null : (
         <div className="tab-track">
           {views.map((v) => (
             <button
@@ -190,26 +227,44 @@ export function ImageWorkspace({
             </button>
           ))}
         </div>
+      )}
 
-        <div className="tab-track">
-          <button
-            type="button"
-            data-active={adjust.showOverlay}
-            className="tab-btn"
-            onClick={() => onAdjust({ showOverlay: true })}
-          >
-            {t(lang, "common.2d")}
-          </button>
-          <button
-            type="button"
-            data-active={!adjust.showOverlay}
-            className="tab-btn"
-            onClick={() => onAdjust({ showOverlay: false })}
-          >
-            {t(lang, "common.original")}
-          </button>
-        </div>
+      <div className="tab-track">
+        <button
+          type="button"
+          data-active={adjust.showOverlay}
+          className="tab-btn"
+          onClick={() => onAdjust({ showOverlay: true })}
+        >
+          {t(lang, "common.2d")}
+        </button>
+        <button
+          type="button"
+          data-active={!adjust.showOverlay}
+          className="tab-btn"
+          onClick={() => onAdjust({ showOverlay: false })}
+        >
+          {t(lang, "common.original")}
+        </button>
+      </div>
+    </>
+  );
 
+  return (
+    <div
+      className={cn(
+        "flex h-full min-h-0 flex-col",
+        workstation ? "ws-film overflow-hidden" : "bg-background",
+      )}
+    >
+      <div
+        className={cn(
+          "flex items-center gap-2 border-b border-border bg-card px-3 py-2 flex-wrap",
+        )}
+      >
+        {leading}
+        {trailing}
+        {tools}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <input
             ref={inputRef}
@@ -231,12 +286,20 @@ export function ImageWorkspace({
 
       <div
         ref={stageRef}
-        className="relative min-h-0 flex-1 overflow-hidden bg-film"
+        className={cn(
+          "relative min-h-0 flex-1 overflow-hidden",
+          workstation ? "ws-stage" : "bg-film",
+          canPan && "cursor-grab active:cursor-grabbing",
+        )}
         onWheel={(e) => {
           e.preventDefault();
           const next = Math.min(3, Math.max(1, adjust.zoom + (e.deltaY < 0 ? 0.15 : -0.15)));
-          onAdjust({ zoom: next });
+          onAdjust({ zoom: next, ...(next === 1 ? { panX: 0, panY: 0 } : {}) });
         }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
       >
         {image ? (
           <div
@@ -300,6 +363,8 @@ export function ImageWorkspace({
 
         {overlay}
 
+        {qualityBadge}
+
         <div className="absolute right-3 bottom-3 flex gap-1.5">
           <IconBtn onClick={() => onAdjust({ zoom: Math.min(3, adjust.zoom + 0.25) })}>
             <Plus />
@@ -330,6 +395,70 @@ export function ImageWorkspace({
           </IconBtn>
         </div>
       </div>
+
+      {modality === "xray" ? (
+        <div className="grid shrink-0 grid-cols-2 gap-2 bg-card px-3 py-3 md:grid-cols-4">
+          {views.map((v) => {
+            const active = adjust.view === v.id;
+            return (
+              <button
+                type="button"
+                key={v.id}
+                onClick={() => onAdjust({ view: v.id, showOverlay: true })}
+                className={cn(
+                  "overflow-hidden rounded-xl border bg-card text-left transition-colors",
+                  active ? "border-primary" : "border-border",
+                )}
+              >
+                <div className="relative h-20 overflow-hidden bg-film">
+                  {image ? (
+                    <img
+                      src={image}
+                      alt=""
+                      className="size-full object-cover"
+                      style={{ filter: filterCss(adjust, v.id) }}
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="flex size-full items-center justify-center text-muted-foreground">
+                      <Images className="size-5" />
+                    </div>
+                  )}
+                  <Expand className="absolute bottom-1.5 left-1.5 size-3.5 text-film-foreground" />
+                </div>
+                <div className="px-3 py-2">
+                  <p className="text-sm font-semibold leading-tight">{t(lang, v.title)}</p>
+                  <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{t(lang, v.hint)}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {workstation && (onPrev || onNext) ? (
+        <div className="flex items-center justify-between gap-3 border-t border-border bg-card px-4 py-2 text-xs">
+          <button
+            type="button"
+            className="rounded-md px-2 py-1 font-medium text-foreground disabled:opacity-40"
+            disabled={!onPrev}
+            onClick={onPrev}
+          >
+            {t(lang, "xray.ws.prev")}
+          </button>
+          <span className="tabular-nums text-muted-foreground">
+            {t(lang, "xray.ws.filmOf", { i: (filmIndex ?? 0) + 1, n: filmCount ?? 1 })}
+          </span>
+          <button
+            type="button"
+            className="rounded-md px-2 py-1 font-medium text-foreground disabled:opacity-40"
+            disabled={!onNext}
+            onClick={onNext}
+          >
+            {t(lang, "xray.ws.next")}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -342,7 +471,7 @@ function ToolChip({
 }: {
   icon: ReactNode;
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
   active?: boolean;
 }) {
   return (
