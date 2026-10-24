@@ -16,6 +16,17 @@ interface PageData {
 const A4_W = 595.28;
 const A4_H = 841.89;
 
+function concatBytes(parts: Uint8Array[]): Uint8Array {
+  const total = parts.reduce((n, part) => n + part.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
 function jpegToPdf(pages: PageData[]): Blob {
   const encoder = new TextEncoder();
   const objects: Uint8Array[] = [];
@@ -36,11 +47,17 @@ function jpegToPdf(pages: PageData[]): Blob {
     );
     const stream = `q ${A4_W} 0 0 ${A4_H} 0 0 cm /Im0 Do Q`;
     pushText(`${contentNum} 0 obj << /Length ${stream.length} >> stream\n${stream}\nendstream endobj\n`);
-    pushText(
-      `${imageNum} 0 obj << /Type /XObject /Subtype /Image /Width ${page.width} /Height ${page.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${page.jpeg.length} >> stream\n`,
+    // The JPEG and its dictionary must be one PDF object. Splitting them makes the
+    // xref point inside the image, so viewers draw every page after the first as blank.
+    objects.push(
+      concatBytes([
+        encoder.encode(
+          `${imageNum} 0 obj << /Type /XObject /Subtype /Image /Width ${page.width} /Height ${page.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${page.jpeg.length} >> stream\n`,
+        ),
+        page.jpeg,
+        encoder.encode("\nendstream endobj\n"),
+      ]),
     );
-    objects.push(page.jpeg);
-    pushText("\nendstream endobj\n");
   }
 
   const header = encoder.encode("%PDF-1.4\n");

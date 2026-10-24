@@ -144,7 +144,7 @@ export default defineConfig(({ command, isPreview }) => ({
     strictPort: true,
     preTransformRequests: false,
     watch: {
-      ignored: ["**/data/**", "**/runs/**", "**/models/**", "**/docs/**", "**/public/samples/**"],
+      ignored: ["**/data/**", "**/runs/**", "**/models/**", "**/docs/**", "**/public/samples/**", "**/_incoming/**"],
     },
   },
   optimizeDeps: {

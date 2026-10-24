@@ -51,26 +51,29 @@ export function FindingsPanel({
   }, [selected]);
 
   return (
-    <aside className={cn("flex h-full min-h-0 flex-col overflow-hidden", workstation ? "p-4" : "p-3")}>
+    <aside className={cn(workstation ? "dx-card" : "flex h-full min-h-0 flex-col overflow-hidden p-3")}>
       {workstation ? (
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Brain className="size-4 text-primary" />
-            <h2 className="text-sm font-semibold">{t(lang, "xray.ws.findings")}</h2>
+        <div className="dx-ch">
+          <div className="dx-ct">
+            <span className="dx-ci">
+              <Brain className="size-5" strokeWidth={1.8} />
+            </span>
+            {t(lang, "xray.ws.findings")}
           </div>
-          {findings.length > 0 ? (
-            <span className="text-xs tabular-nums text-muted-foreground">{findings.length}</span>
-          ) : null}
+          <div className="dx-ok">
+            <i />
+            {analyzingLabel(lang, findings.length)}
+          </div>
         </div>
       ) : null}
 
       {forcedTab ? null : (
-        <div className="tab-track mb-3">
+        <div className={workstation ? "dx-tabs" : "tab-track mb-3"}>
           <button
             type="button"
             data-active={activeTab === "ai"}
             onClick={() => setTab("ai")}
-            className="tab-btn flex-1"
+            className={workstation ? cn(activeTab === "ai" && "on") : "tab-btn flex-1"}
           >
             <Brain className="size-3.5" />
             {workstation ? t(lang, "workspace.findings") : t(lang, "common.aiAnalysis")}
@@ -80,7 +83,7 @@ export function FindingsPanel({
               type="button"
               data-active={activeTab === "chart"}
               onClick={() => setTab("chart")}
-              className="tab-btn flex-1"
+              className={workstation ? cn(activeTab === "chart" && "on") : "tab-btn flex-1"}
             >
               {t(lang, "xray.ws.chart")}
             </button>
@@ -89,7 +92,7 @@ export function FindingsPanel({
             type="button"
             data-active={activeTab === "report"}
             onClick={() => setTab("report")}
-            className="tab-btn flex-1"
+            className={workstation ? cn(activeTab === "report" && "on") : "tab-btn flex-1"}
           >
             <FileText className="size-3.5" />
             {t(lang, "common.report")}
@@ -230,78 +233,120 @@ export function FindingsPanel({
 
       {activeTab === "report" ? <ReportTab modality={modality} findings={findings} /> : null}
 
-      <Button
-        className="mt-3 w-full"
-        onClick={() =>
-          void downloadReportPdf({
-            lang,
-            xray: modality === "xray" ? findings : [],
-            intraoral: modality === "intraoral" ? findings : [],
-            fusion: fuseFindings(modality === "xray" ? findings : [], modality === "intraoral" ? findings : []),
-            reportType: modality,
-          })
-        }
-      >
-        <Download />
-        {t(lang, "common.downloadPdf")}
-      </Button>
+      {workstation ? (
+        <button
+          type="button"
+          className="dx-cta"
+          onClick={() =>
+            void downloadReportPdf({
+              lang,
+              xray: modality === "xray" ? findings : [],
+              intraoral: modality === "intraoral" ? findings : [],
+              fusion: fuseFindings(modality === "xray" ? findings : [], modality === "intraoral" ? findings : []),
+              reportType: modality,
+            })
+          }
+        >
+          <Download className="size-5" />
+          {t(lang, "common.downloadPdf")}
+        </button>
+      ) : (
+        <Button
+          className="mt-3 w-full"
+          onClick={() =>
+            void downloadReportPdf({
+              lang,
+              xray: modality === "xray" ? findings : [],
+              intraoral: modality === "intraoral" ? findings : [],
+              fusion: fuseFindings(modality === "xray" ? findings : [], modality === "intraoral" ? findings : []),
+              reportType: modality,
+            })
+          }
+        >
+          <Download />
+          {t(lang, "common.downloadPdf")}
+        </Button>
+      )}
     </aside>
   );
 }
+
+function analyzingLabel(lang: "en" | "tr", count: number) {
+  if (count > 0) return lang === "tr" ? "Tarama tamamlandı" : "Scan complete";
+  return lang === "tr" ? "Tespit yok" : "None detected";
+}
+
+const GROUP_TINT = ["#A78BFA", "#60A5FA", "#4ADE80", "#F472B6"];
 
 function FindingGroupMeters({ findings }: { findings: Finding[] }) {
   const lang = useApp((s) => s.language);
   const selected = useApp((s) => s.selectedFindingId);
   const setSelected = useApp((s) => s.setSelectedFindingId);
 
+  const groups = XRAY_FINDING_GROUPS.map((group, index) => {
+    const items = findingsInGroup(findings, group.keys);
+    return { group, items, pct: Math.round(groupConfidence(items) * 100), color: GROUP_TINT[index] ?? "#5EEAD4" };
+  });
+
   return (
-    <div className="mb-3 space-y-2.5">
-      {XRAY_FINDING_GROUPS.map((group) => {
-        const items = findingsInGroup(findings, group.keys);
-        const pct = Math.round(groupConfidence(items) * 100);
-        const active = items.some((f) => f.id === selected);
-        return (
-          <button
-            key={group.id}
-            type="button"
-            disabled={items.length === 0}
-            onClick={() => {
-              const i = items.findIndex((f) => f.id === selected);
-              setSelected(items[(i + 1) % items.length].id);
-            }}
-            className={cn(
-              "w-full rounded-xl px-1 py-1 text-left disabled:opacity-55",
-              active && "bg-accent/70",
-            )}
-          >
-            <span className="flex items-start gap-2.5">
-              <span
-                className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full"
-                style={{ background: `color-mix(in oklab, var(${group.colorVar}) 16%, white)` }}
-              >
-                <ToothMark className="size-3.5" style={{ color: `var(${group.colorVar})` }} />
+    <div>
+      <div className="dx-core" aria-hidden="true">
+        <svg width="232" height="232" viewBox="0 0 200 200">
+          <circle cx="100" cy="100" r="97" fill="none" stroke="var(--ring)" strokeWidth="1.5" strokeDasharray="1.5 7" />
+          <g transform="rotate(-90 100 100)" fill="none" strokeWidth="9" strokeLinecap="round">
+            {groups.map((row, index) => {
+              const radius = 84 - index * 14;
+              const circ = 2 * Math.PI * radius;
+              return (
+                <circle
+                  key={row.group.id}
+                  cx="100"
+                  cy="100"
+                  r={radius}
+                  stroke={row.color}
+                  strokeDasharray={`${(row.pct / 100) * circ} ${circ}`}
+                />
+              );
+            })}
+          </g>
+        </svg>
+        <div className="mid">
+          <div className="n dx-mono">{findings.length}</div>
+          <div className="u">{lang === "tr" ? "bulgu" : "findings"}</div>
+        </div>
+      </div>
+      <div className="dx-rows">
+        {groups.map((row) => {
+          const active = row.items.some((f) => f.id === selected);
+          return (
+            <button
+              key={row.group.id}
+              type="button"
+              disabled={row.items.length === 0}
+              onClick={() => {
+                const i = row.items.findIndex((f) => f.id === selected);
+                setSelected(row.items[(i + 1) % row.items.length].id);
+              }}
+              className="dx-row"
+              style={active ? { borderColor: row.color } : undefined}
+            >
+              <span className="dx-orb" style={{ background: `${row.color}29` }}>
+                <i style={{ background: row.color, boxShadow: `0 0 14px ${row.color}` }} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="flex items-center justify-between gap-2">
-                  <span className="truncate text-[13px] font-semibold">{t(lang, group.labelKey)}</span>
-                  <span className="text-xs font-semibold tabular-nums">{pct}%</span>
+                <span className="tt2">{t(lang, row.group.labelKey)}</span>
+                <span className="ss block">
+                  {row.items.length === 0 ? t(lang, "xray.ws.noneDetected") : t(lang, "xray.ws.detectedCount", { n: row.items.length })}
                 </span>
-                <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                  {items.length === 0
-                    ? t(lang, "xray.ws.noneDetected")
-                    : t(lang, "xray.ws.detectedCount", { n: items.length })}
-                </span>
-                <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[#eef2f4]">
-                  <span
-                    className="block h-full rounded-full"
-                    style={{ width: `${pct}%`, background: `var(${group.colorVar})` }}
-                  />
+                <span className="dx-bar">
+                  <span className="block h-full" style={{ width: `${row.pct}%`, background: row.color }} />
                 </span>
               </span>
-            </span>
-          </button>
-        );
-      })}
+              <span className="dx-mono text-base font-semibold">{row.pct}%</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

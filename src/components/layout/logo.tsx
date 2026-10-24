@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import type { SVGProps } from "react";
 import { cn } from "@/lib/utils";
 
@@ -14,18 +15,16 @@ export function ToothMark({ className, ...props }: SVGProps<SVGSVGElement>) {
 
 export function BrandLockup({ compact = false, subtitle }: { compact?: boolean; subtitle?: string }) {
   return (
-    <div className="flex items-center gap-2.5">
-      <span className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
-        <ToothMark className="size-4" />
+    <Link to="/" className="dx-brand">
+      <span className="dx-logo" aria-hidden="true">
+        <ToothMark className="size-7" />
       </span>
       <span className="min-w-0">
-        <span className="block text-[0.95rem] font-semibold tracking-tight text-foreground">DentaAI</span>
-        {!compact ? (
-          <span className="block max-w-[14rem] truncate text-[11px] text-muted-foreground">
-            {subtitle ?? "Clinical imaging"}
-          </span>
-        ) : null}
+        <span className="dx-wm">
+          Denta<span>AI</span>
+        </span>
+        {!compact ? <span className="dx-sub">{subtitle ?? "Clinical imaging"}</span> : null}
       </span>
-    </div>
+    </Link>
   );
 }

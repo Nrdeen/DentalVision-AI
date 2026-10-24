@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Camera, FileText, Home, Images, Settings } from "lucide-react";
+import { Camera, FileText, Home, Images, Moon, Settings, Sun } from "lucide-react";
 import type { ReactNode } from "react";
 import { BrandLockup } from "@/components/layout/logo";
 import { findingLabel, t } from "@/lib/dentaai/i18n";
@@ -14,69 +14,49 @@ const NAV = [
   { to: "/settings", key: "nav.settings", icon: Settings },
 ] as const;
 
-const WORKSPACE = new Set(["/xray", "/intraoral"]);
-
 export function AppShell({ children }: { children: ReactNode }) {
   const lang = useApp((s) => s.language);
   const setLanguage = useApp((s) => s.setLanguage);
+  const theme = useApp((s) => s.theme);
+  const setTheme = useApp((s) => s.setTheme);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const workspace = WORKSPACE.has(pathname);
+  const workspace = pathname === "/xray" || pathname === "/intraoral";
 
   return (
-    <div className="min-h-dvh bg-[#f7f8fa]">
-      <header className="sticky top-0 z-40 border-b border-[#e8edf2] bg-white">
-        <div className="flex h-16 items-center gap-4 px-4 lg:px-6">
-          <Link to="/" className="shrink-0">
-            <BrandLockup subtitle={t(lang, "brand.subtitle")} />
-          </Link>
-
-          <nav aria-label={t(lang, "nav.home")} className="flex min-w-0 flex-1 items-center justify-center gap-0.5 overflow-x-auto">
-            {NAV.map((item) => {
-              const active = pathname === item.to;
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={cn(
-                    "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium",
-                    active ? "bg-[#eef4f8] text-foreground" : "text-muted-foreground hover:bg-[#f3f6f8] hover:text-foreground",
-                  )}
-                >
-                  <Icon className="size-3.5" />
-                  {t(lang, item.key)}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="flex shrink-0 items-center gap-2">
-            <div className="flex rounded-lg bg-[#f3f6f8] p-0.5">
-              {(["en", "tr"] as const).map((code) => (
-                <button
-                  key={code}
-                  type="button"
-                  className={cn(
-                    "h-7 rounded-md px-2 text-xs font-semibold",
-                    lang === code ? "bg-white text-foreground shadow-sm" : "text-muted-foreground",
-                  )}
-                  onClick={() => setLanguage(code)}
-                >
-                  {code.toUpperCase()}
-                </button>
-              ))}
-            </div>
+    <div className={cn("dx-app", theme)}>
+      <header className="dx-hdr">
+        <BrandLockup subtitle={t(lang, "brand.subtitle")} />
+        <nav className="dx-nav" aria-label={t(lang, "nav.home")}>
+          {NAV.map((item) => {
+            const active = pathname === item.to;
+            const Icon = item.icon;
+            return (
+              <Link key={item.to} to={item.to} className={cn("dx-nv", active && "on")} aria-current={active ? "page" : undefined}>
+                <Icon className="size-[19px]" strokeWidth={1.8} />
+                {t(lang, item.key)}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="dx-grp">
+          <div className="dx-seg" role="group" aria-label={lang === "tr" ? "Tema" : "Theme"}>
+            <button type="button" className={theme === "light" ? "on" : undefined} aria-pressed={theme === "light"} aria-label={lang === "tr" ? "Açık tema" : "Light theme"} onClick={() => setTheme("light")}>
+              <Sun className="size-5" strokeWidth={1.8} />
+            </button>
+            <button type="button" className={theme === "dark" ? "on" : undefined} aria-pressed={theme === "dark"} aria-label={lang === "tr" ? "Koyu tema" : "Dark theme"} onClick={() => setTheme("dark")}>
+              <Moon className="size-5" strokeWidth={1.8} />
+            </button>
+          </div>
+          <div className="dx-seg" role="group" aria-label={lang === "tr" ? "Dil" : "Language"}>
+            {(["en", "tr"] as const).map((code) => (
+              <button key={code} type="button" className={lang === code ? "on" : undefined} aria-pressed={lang === code} onClick={() => setLanguage(code)}>
+                {code.toUpperCase()}
+              </button>
+            ))}
           </div>
         </div>
       </header>
-
-      <main
-        className={cn(
-          workspace ? "h-[calc(100dvh-var(--header-h))] overflow-hidden" : "mx-auto max-w-6xl px-4 py-6 lg:px-6",
-        )}
-      >
-        {children}
-      </main>
+      <main className={workspace ? "min-w-0" : "dx-page"}>{children}</main>
     </div>
   );
 }

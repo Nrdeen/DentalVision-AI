@@ -155,6 +155,7 @@ async function requestIntraoralInference(image: string): Promise<{ findings: Fin
 
 export interface AppState {
   language: Lang;
+  theme: "light" | "dark";
   patientAge: number | null;
   threshold: number;
   overlayDefault: boolean;
@@ -171,6 +172,7 @@ export interface AppState {
   selectedFindingId: string | null;
   hiddenFindingIds: string[];
   setLanguage: (language: Lang) => void;
+  setTheme: (theme: "light" | "dark") => void;
   setPatientAge: (patientAge: number | null) => void;
   setThreshold: (threshold: number) => void;
   setOverlayDefault: (value: boolean) => void;
@@ -197,6 +199,7 @@ let intraJob = 0;
 
 export const useApp = create<AppState>()((set, get) => ({
   language: "tr",
+  theme: "light",
   patientAge: null,
   // Operator slider; each specialist also applies its own higher floor in gateFindings.
   threshold: 0.4,
@@ -214,6 +217,7 @@ export const useApp = create<AppState>()((set, get) => ({
   selectedFindingId: null,
   hiddenFindingIds: [],
   setLanguage: (language) => set({ language }),
+  setTheme: (theme) => set({ theme }),
   setPatientAge: (patientAge) =>
     set((s) => ({
       patientAge,
