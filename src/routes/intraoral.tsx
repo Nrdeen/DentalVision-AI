@@ -15,6 +15,61 @@ export const Route = createFileRoute("/intraoral")({
   component: IntraoralPage,
 });
 
+function ToothScopeBar() {
+  const lang = useApp((s) => s.language);
+  const scope = useApp((s) => s.intraoralToothScope);
+  const setScope = useApp((s) => s.setIntraoralToothScope);
+  const [draft, setDraft] = useState(scope?.kind === "tooth" ? scope.fdi : "");
+  const quadrants = [1, 2, 3, 4] as const;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-xs" title={t(lang, "intra.toothScopeHint")}>
+      <span className="text-muted-foreground">{t(lang, "intra.toothScope")}</span>
+      <button
+        type="button"
+        className="tab-btn"
+        data-active={!scope}
+        onClick={() => {
+          setDraft("");
+          setScope(null);
+        }}
+      >
+        {t(lang, "intra.scopeClear")}
+      </button>
+      {quadrants.map((q) => (
+        <button
+          key={q}
+          type="button"
+          className="tab-btn"
+          data-active={scope?.kind === "quadrant" && scope.quadrant === q}
+          onClick={() => {
+            setDraft("");
+            setScope({ kind: "quadrant", quadrant: q });
+          }}
+        >
+          {t(lang, "intra.scopeQ")}
+          {q}
+        </button>
+      ))}
+      <Input
+        className="h-8 w-16 px-2"
+        inputMode="numeric"
+        maxLength={2}
+        placeholder="16"
+        value={draft}
+        onChange={(event) => {
+          const raw = event.target.value.replace(/\D/g, "").slice(0, 2);
+          setDraft(raw);
+          if (!raw) {
+            setScope(null);
+            return;
+          }
+          if (/^[1-4][1-8]$/.test(raw)) setScope({ kind: "tooth", fdi: raw });
+        }}
+      />
+    </div>
+  );
+}
+
 function IntraoralPage() {
   const lang = useApp((s) => s.language);
   const query = useApp((s) => s.query);
@@ -57,10 +112,11 @@ function IntraoralPage() {
   }, [selectedFindingId]);
 
   return (
-    <div className="ws-page flex h-full min-h-0 flex-col gap-2.5 p-2.5 lg:p-3">
-      <header className="ws-casebar flex flex-wrap items-center gap-3 px-3 py-2.5">
-        <span className="text-sm font-semibold">{t(lang, "intraoral.ws.modality")}</span>
-        <span className="hidden h-8 w-px bg-[#e8edf2] sm:block" />
+    <div className="dx-main">
+      <div className="dx-left">
+      <header className="dx-case">
+        <span className="dx-chip strong">{t(lang, "intraoral.ws.modality")}</span>
+        <span className="hidden h-8 w-px bg-border sm:block" />
         {mioClassification ? (
           <span className="inline-flex items-center gap-2 text-xs">
             <Heart className="size-3.5 text-primary" />
@@ -81,6 +137,7 @@ function IntraoralPage() {
           <CalendarDays className="size-3.5" />
           {examDate}
         </span>
+        <ToothScopeBar />
 
         <label className="relative ml-auto min-w-[11rem] max-w-xs flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -118,7 +175,6 @@ function IntraoralPage() {
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 gap-2.5 xl:grid-cols-[minmax(0,1fr)_20.5rem]">
         <ImageWorkspace
           modality="intraoral"
           variant="workstation"
@@ -144,16 +200,16 @@ function IntraoralPage() {
             )
           }
         />
-
-        <aside className="ws-panel hidden min-h-0 flex-1 overflow-hidden xl:flex">
-          <FindingsPanel
-            modality="intraoral"
-            variant="workstation"
-            findings={visible}
-            withheldCount={gated.withheld.length}
-          />
-        </aside>
       </div>
+
+      <aside className="dx-right hidden xl:flex">
+        <FindingsPanel
+          modality="intraoral"
+          variant="workstation"
+          findings={visible}
+          withheldCount={gated.withheld.length}
+        />
+      </aside>
     </div>
   );
 }

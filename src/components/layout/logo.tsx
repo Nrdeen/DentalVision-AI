@@ -4,11 +4,18 @@ import { cn } from "@/lib/utils";
 
 export function ToothMark({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 32 32" className={cn("size-5", className)} aria-hidden="true" {...props}>
-      <path
-        fill="currentColor"
-        d="M16 4.2c3.2 0 5.6 1.7 7.2 3.6 1.5 1.8 2.4 4 2.6 6.2.2 2.4-.4 4.5-1.6 6.6-1.1 1.9-2.2 3.6-2.6 5.8-.3 1.6-1.6 2.8-3.2 2.8-1.2 0-2-.7-2.4-1.8L16 25l-.1 2.4c-.4 1.1-1.2 1.8-2.4 1.8-1.6 0-2.9-1.2-3.2-2.8-.4-2.2-1.5-3.9-2.6-5.8-1.2-2.1-1.8-4.2-1.6-6.6.2-2.2 1.1-4.4 2.6-6.2C10.4 5.9 12.8 4.2 16 4.2Z"
-      />
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={cn("size-[18px]", className)}
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M7 3c-3 0-4 3-3 6 .6 2 1 3 1.2 6 .2 3 1.3 6 3 6 2 0 1.5-5 4.8-5s2.8 5 4.8 5c1.7 0 2.8-3 3-6 .2-3 .6-4 1.2-6 1-3 0-6-3-6-2 0-3 1-5 1S9 3 7 3Z" />
     </svg>
   );
 }
@@ -17,13 +24,11 @@ export function BrandLockup({ compact = false, subtitle }: { compact?: boolean; 
   return (
     <Link to="/" className="dx-brand">
       <span className="dx-logo" aria-hidden="true">
-        <ToothMark className="size-7" />
+        <ToothMark className="size-[18px]" />
       </span>
       <span className="min-w-0">
-        <span className="dx-wm">
-          Denta<span>AI</span>
-        </span>
-        {!compact ? <span className="dx-sub">{subtitle ?? "Clinical imaging"}</span> : null}
+        <span className="dx-wm">DentalVision AI</span>
+        {!compact && subtitle ? <span className="dx-sub">{subtitle}</span> : null}
       </span>
     </Link>
   );

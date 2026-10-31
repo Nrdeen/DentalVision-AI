@@ -23,7 +23,10 @@ test("OralXrays-9 class names route without mixing filling and root canal", () =
   assert.equal(routeXrayClass(-1, "rootCanal").specialist, "xray-restorations");
   assert.equal(routeXrayClass(-1, "Missing Tooth").key, "missingTooth");
   assert.equal(routeXrayClass(-1, "Decay").key, "caries");
-  assert.equal(routeXrayClass(-1, "Apical Periodontitis").policy, "withhold");
+  assert.equal(routeXrayClass(-1, "Decay").specialist, "xray-caries");
+  assert.equal(routeXrayClass(-1, "Apical Periodontitis").key, "periapical");
+  assert.equal(routeXrayClass(-1, "Apical Periodontitis").specialist, "xray-periapical");
+  assert.equal(routeXrayClass(-1, "Apical Periodontitis").policy, "show");
 });
 
 test("short alias kanal does not swallow mandibular canal", () => {
@@ -31,10 +34,58 @@ test("short alias kanal does not swallow mandibular canal", () => {
   assert.equal(routeXrayClass(2, "kanal tedavisi").key, "rootCanal");
 });
 
-test("ToothTruth periapical and bone loss are withheld until specialists exist", () => {
-  assert.equal(routeXrayClass(-1, "Periapical lesion").policy, "withhold");
-  assert.equal(routeXrayClass(4, "lezyon").policy, "withhold");
-  assert.equal(routeXrayClass(-1, "Bone Loss").policy, "withhold");
+test("caries, periapical and bone loss route to specialists but stay gated off until trained", () => {
+  assert.equal(routeXrayClass(-1, "Periapical lesion").specialist, "xray-periapical");
+  assert.equal(routeXrayClass(4, "lezyon").specialist, "xray-periapical");
+  assert.equal(routeXrayClass(-1, "Bone Loss").specialist, "xray-bone");
+  const { visible, withheld } = gateFindings(
+    [
+      {
+        id: "c1",
+        key: "caries",
+        confidence: 0.9,
+        tooth: "-",
+        positionKey: "upperRightRegion",
+        severity: "high",
+        descriptionKey: "cariesDesc",
+        bbox: [0.2, 0.2, 0.3, 0.4],
+        colorVar: "--color-finding-caries",
+        source: "xray",
+        modelClassName: "Decay",
+      },
+      {
+        id: "p1",
+        key: "periapical",
+        confidence: 0.9,
+        tooth: "-",
+        positionKey: "upperRightRegion",
+        severity: "high",
+        descriptionKey: "periapicalDesc",
+        bbox: [0.3, 0.4, 0.4, 0.55],
+        colorVar: "--color-finding-periapical",
+        source: "xray",
+        modelClassName: "Apical Periodontitis",
+      },
+      {
+        id: "b1",
+        key: "boneLoss",
+        confidence: 0.9,
+        tooth: "-",
+        positionKey: "upperRightRegion",
+        severity: "medium",
+        descriptionKey: "boneLossDesc",
+        bbox: [0.1, 0.5, 0.4, 0.7],
+        colorVar: "--color-finding-periapical",
+        source: "xray",
+        modelClassName: "Bone Loss",
+      },
+    ],
+    0.4,
+  );
+  assert.equal(visible.length, 0);
+  assert.ok(withheld.some((f) => f.key === "caries" && f.withheldReason === "unreliable-class"));
+  assert.ok(withheld.some((f) => f.key === "periapical"));
+  assert.ok(withheld.some((f) => f.key === "boneLoss"));
 });
 
 test("camelCase finding keys from the UI still route", () => {

@@ -2,6 +2,8 @@ import { toast } from "sonner";
 import { create } from "zustand";
 import { t } from "./i18n";
 import { adultPanoramicAllowed, panoramicCohort } from "./panoramic-age";
+import { applyIntraoralScope } from "./intraoral-scope";
+import { attachFindingsToTeeth } from "./tooth-assign";
 import { withSingleEstimatedTeeth } from "./tooth-numbering";
 import {
   DEFAULT_ADJUST,
@@ -9,6 +11,7 @@ import {
   SAMPLE_XRAY,
   type Finding,
   type ImageAdjust,
+  type IntraoralToothScope,
   type Lang,
   type MIOClassification,
   type XrayQuality,
@@ -164,6 +167,7 @@ export interface AppState {
   xrayFindings: Finding[];
   xrayQuality: XrayQuality | null;
   intraoralFindings: Finding[];
+  intraoralToothScope: IntraoralToothScope;
   mioClassification: MIOClassification | null;
   xrayAdjust: ImageAdjust;
   intraoralAdjust: ImageAdjust;
@@ -186,6 +190,7 @@ export interface AppState {
   resetIntraoralAdjust: () => void;
   loadDemo: () => void;
   clearCase: () => void;
+  setIntraoralToothScope: (scope: IntraoralToothScope) => void;
   runXray: (image: string) => Promise<void>;
   runIntraoral: (image: string) => Promise<void>;
 }
@@ -209,6 +214,7 @@ export const useApp = create<AppState>()((set, get) => ({
   xrayFindings: [],
   xrayQuality: null,
   intraoralFindings: [],
+  intraoralToothScope: null,
   mioClassification: null,
   xrayAdjust: { ...DEFAULT_ADJUST },
   intraoralAdjust: { ...DEFAULT_ADJUST },
@@ -245,6 +251,11 @@ export const useApp = create<AppState>()((set, get) => ({
   setIntraoralAdjust: (patch) => set((s) => ({ intraoralAdjust: { ...s.intraoralAdjust, ...patch } })),
   resetXrayAdjust: () => set({ xrayAdjust: { ...DEFAULT_ADJUST } }),
   resetIntraoralAdjust: () => set({ intraoralAdjust: { ...DEFAULT_ADJUST } }),
+  setIntraoralToothScope: (intraoralToothScope) =>
+    set((s) => ({
+      intraoralToothScope,
+      intraoralFindings: applyIntraoralScope(s.intraoralFindings, intraoralToothScope),
+    })),
   loadDemo: () => {
     set({ intraoralAdjust: { ...DEFAULT_ADJUST }, patientAge: 35 });
     void get().runXray(SAMPLE_XRAY);
@@ -258,6 +269,7 @@ export const useApp = create<AppState>()((set, get) => ({
       xrayFindings: [],
       xrayQuality: null,
       intraoralFindings: [],
+      intraoralToothScope: null,
       selectedFindingId: null,
       hiddenFindingIds: [],
     }),
@@ -292,7 +304,9 @@ export const useApp = create<AppState>()((set, get) => ({
       if (job !== xrayJob) return;
       // API now provides source field, no need to add it here
       // Apply IoU dedup to remove overlapping detections of the same class.
-      const deduplicated = withSingleEstimatedTeeth(deduplicateFindings(findings));
+      // 32-class FDI detector is not trained yet; IoD attach is a no-op until tooth boxes exist.
+      const numbered = attachFindingsToTeeth(deduplicateFindings(findings), []);
+      const deduplicated = withSingleEstimatedTeeth(numbered);
       set({ analyzing: null, xrayFindings: deduplicated, xrayQuality: quality });
       if (deduplicated.length === 0) {
         toast.message("No detections above the model threshold for this image.");
@@ -320,7 +334,7 @@ export const useApp = create<AppState>()((set, get) => ({
       // API now provides source field, no need to add it here
       // Apply deduplication to remove overlapping detections
       console.log(`[STORE] API returned ${findings.length} findings`);
-      const deduplicated = withSingleEstimatedTeeth(deduplicateFindings(findings));
+      const deduplicated = applyIntraoralScope(deduplicateFindings(findings), get().intraoralToothScope);
       console.log(`[STORE] Setting state with ${deduplicated.length} findings`);
       set({ analyzing: null, intraoralFindings: deduplicated, mioClassification });
       if (deduplicated.length === 0) {

@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Camera, FileText, Images } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { gateFindings } from "@/lib/dentaai/ensemble";
 import { fuseFindings } from "@/lib/dentaai/fusion";
@@ -25,36 +24,49 @@ function Home() {
   const loadDemo = useApp((s) => s.loadDemo);
 
   return (
-    <div className="space-y-8">
-      <section className="max-w-2xl">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground md:text-[2.15rem]">
-          {t(lang, "home.title")}
-        </h1>
-        <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">{t(lang, "home.lead")}</p>
-        <div className="mt-5 flex flex-wrap gap-2">
+    <div className="space-y-4">
+      <section className="card-surface rounded-2xl p-5">
+        <h1 className="text-xl font-semibold leading-tight">{t(lang, "home.title")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t(lang, "home.lead")}</p>
+        <div className="mt-4 flex flex-wrap gap-2">
           <Button asChild>
-            <Link to="/xray">
-              {t(lang, "home.openXray")}
-              <ArrowRight />
-            </Link>
+            <Link to="/xray">{t(lang, "home.openXray")}</Link>
           </Button>
           <Button variant="outline" asChild>
             <Link to="/intraoral">{t(lang, "home.openIntra")}</Link>
           </Button>
-          <Button variant="ghost" onClick={loadDemo}>
+          <button type="button" className="ib" onClick={loadDemo}>
             {t(lang, "common.loadDemo")}
-          </Button>
+          </button>
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
+      <section className="kp">
+        <div>
+          <b>{fusion.xrayCount}</b>
+          <span>{t(lang, "nav.xray")}</span>
+        </div>
+        <div>
+          <b>{fusion.intraCount}</b>
+          <span>{t(lang, "nav.intraoral")}</span>
+        </div>
+        <div>
+          <b>{fusion.sharedCount}</b>
+          <span>{t(lang, "home.statsS")}</span>
+        </div>
+        <div>
+          <b>{fusion.xrayCount + fusion.intraCount}</b>
+          <span>{t(lang, "common.detected")}</span>
+        </div>
+      </section>
+
+      <section className="pan">
         <ModalityTile
           to="/xray"
           title={t(lang, "nav.xray")}
           body={t(lang, "home.xrayDiseases")}
           image={xrayImage}
           count={fusion.xrayCount}
-          icon={<Images className="size-4" />}
         />
         <ModalityTile
           to="/intraoral"
@@ -62,21 +74,12 @@ function Home() {
           body={t(lang, "home.intraDiseases")}
           image={intraoralImage}
           count={fusion.intraCount}
-          icon={<Camera className="size-4" />}
         />
+        <Link to="/report">
+          <b>{t(lang, "home.openReport")}</b>
+          <span>{t(lang, "home.lead")}</span>
+        </Link>
       </section>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
-        <p className="text-sm text-muted-foreground">
-          {t(lang, "home.statsS")} {fusion.sharedCount}
-        </p>
-        <Button variant="outline" asChild>
-          <Link to="/report">
-            <FileText />
-            {t(lang, "home.openReport")}
-          </Link>
-        </Button>
-      </div>
     </div>
   );
 }
@@ -87,30 +90,25 @@ function ModalityTile({
   body,
   image,
   count,
-  icon,
 }: {
   to: "/xray" | "/intraoral";
   title: string;
   body: string;
   image: string | null;
   count: number;
-  icon: ReactNode;
+  icon?: ReactNode;
 }) {
   return (
-    <Link to={to} className="card-surface group overflow-hidden rounded-xl">
-      <div className="relative aspect-[16/8] bg-film">
-        {image ? <img src={image} alt="" className="size-full object-cover" /> : null}
-      </div>
-      <div className="flex items-start justify-between gap-3 p-4">
-        <div>
-          <p className="flex items-center gap-2 text-sm font-semibold">
-            <span className="text-primary">{icon}</span>
-            {title}
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{body}</p>
-        </div>
-        <span className="text-lg font-semibold tabular-nums">{count}</span>
-      </div>
+    <Link to={to}>
+      {image ? (
+        <span className="mb-2 block overflow-hidden rounded-[8px] bg-film">
+          <img src={image} alt="" className="aspect-[16/7] w-full object-cover" />
+        </span>
+      ) : null}
+      <b>
+        {title} · {count}
+      </b>
+      <span>{body}</span>
     </Link>
   );
 }

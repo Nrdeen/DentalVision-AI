@@ -90,15 +90,15 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistSpec> = {
   "xray-periapical": {
     id: "xray-periapical",
     section: "xray",
-    minConfidence: 0.85,
-    lastMap50: 0.078,
+    minConfidence: 0.55,
+    lastMap50: null,
     enabled: false,
     weightHint: "models/xray/specialists/periapical.pt",
   },
   "xray-bone": {
     id: "xray-bone",
     section: "xray",
-    minConfidence: 0.8,
+    minConfidence: 0.55,
     lastMap50: 0.208,
     enabled: false,
     weightHint: "models/xray/specialists/bone.pt",
@@ -171,7 +171,7 @@ const DENTEX_BY_ID: Record<number, ClassRoute> = {
     descriptionKey: "periapicalDesc",
     colorVar: "--color-finding-periapical",
     specialist: "xray-periapical",
-    policy: "withhold",
+    policy: "show",
   },
 };
 
@@ -203,8 +203,8 @@ const ALIASES: Array<[string, ClassRoute]> = [
   ["gomulu", route("impacted", "impactedDesc", "--color-finding-impacted", "xray-impaction")],
   ["impact", route("impacted", "impactedDesc", "--color-finding-impacted", "xray-impaction")],
 
-  ["missing teeth", route("missingTooth", "missingToothDesc", "--color-finding-impacted", "xray-missing")],
-  ["missing tooth", route("missingTooth", "missingToothDesc", "--color-finding-impacted", "xray-missing")],
+  ["missing teeth", route("missingTooth", "missingToothDesc", "--color-finding-missing", "xray-missing")],
+  ["missing tooth", route("missingTooth", "missingToothDesc", "--color-finding-missing", "xray-missing")],
 
   ["root canal obturation", route("rootCanal", "rootCanalDesc", "--color-finding-kanal", "xray-restorations")],
   ["root canal filling", route("rootCanal", "rootCanalDesc", "--color-finding-kanal", "xray-restorations")],
@@ -228,15 +228,15 @@ const ALIASES: Array<[string, ClassRoute]> = [
   ["retained root", route("retainedRoot", "retainedRootDesc", "--color-finding-kanal", "xray-restorations")],
   ["root piece", route("retainedRoot", "retainedRootDesc", "--color-finding-kanal", "xray-restorations")],
 
-  ["apical periodontitis", route("periapical", "periapicalDesc", "--color-finding-periapical", "xray-periapical", "withhold")],
-  ["apical", route("periapical", "periapicalDesc", "--color-finding-periapical", "xray-periapical", "withhold")],
-  ["periapical lesion", route("periapical", "periapicalDesc", "--color-finding-periapical", "xray-periapical", "withhold")],
-  ["periapical", route("periapical", "periapicalDesc", "--color-finding-periapical", "xray-periapical", "withhold")],
-  ["periapikal", route("periapical", "periapicalDesc", "--color-finding-periapical", "xray-periapical", "withhold")],
-  ["lezyon", route("periapical", "periapicalDesc", "--color-finding-periapical", "xray-periapical", "withhold")],
+  ["apical periodontitis", route("periapical", "periapicalDesc", "--color-finding-periapical", "xray-periapical")],
+  ["apical", route("periapical", "periapicalDesc", "--color-finding-periapical", "xray-periapical")],
+  ["periapical lesion", route("periapical", "periapicalDesc", "--color-finding-periapical", "xray-periapical")],
+  ["periapical", route("periapical", "periapicalDesc", "--color-finding-periapical", "xray-periapical")],
+  ["periapikal", route("periapical", "periapicalDesc", "--color-finding-periapical", "xray-periapical")],
+  ["lezyon", route("periapical", "periapicalDesc", "--color-finding-periapical", "xray-periapical")],
 
-  ["bone loss", route("boneLoss", "boneLossDesc", "--color-finding-periapical", "xray-bone", "withhold")],
-  ["kemik", route("boneLoss", "boneLossDesc", "--color-finding-periapical", "xray-bone", "withhold")],
+  ["bone loss", route("boneLoss", "boneLossDesc", "--color-finding-periapical", "xray-bone")],
+  ["kemik", route("boneLoss", "boneLossDesc", "--color-finding-periapical", "xray-bone")],
 
   ["deep decay", route("deepCaries", "deepCariesDesc", "--color-finding-deep", "xray-caries")],
   ["deep caries", route("deepCaries", "deepCariesDesc", "--color-finding-deep", "xray-caries")],

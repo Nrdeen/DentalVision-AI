@@ -1,4 +1,4 @@
-import { t } from "./i18n";
+import { findingLabel, t } from "./i18n";
 import { buildReport, type ReportModel, type ReportRow } from "./report-model";
 import { useApp } from "./store";
 import type { Finding, FusionResult, Lang, Severity } from "./types";
@@ -744,6 +744,62 @@ function drawCombinedOverview(doc: Doc, fusion: FusionResult, lang: Lang) {
     { size: 9, color: MUTED },
   );
   doc.y += h + 16;
+  drawFusionTable(doc, fusion, lang);
+}
+
+function drawFusionTable(doc: Doc, fusion: FusionResult, lang: Lang) {
+  const tr = lang === "tr";
+  doc.sectionTitle(t(lang, "report.table"), `${fusion.rows.length}`);
+  const cols = [0.34, 0.14, 0.16, 0.16, 0.2];
+  const headers = [
+    t(lang, "report.colProblem"),
+    t(lang, "report.colTooth"),
+    t(lang, "report.colXray"),
+    t(lang, "report.colIntra"),
+    t(lang, "report.colResult"),
+  ];
+  const rowH = 22;
+  doc.ensure(32 + Math.max(fusion.rows.length, 1) * rowH);
+  doc.rr(MX, doc.y, CW, 22, 0, SOFT);
+  let x = MX;
+  headers.forEach((h, i) => {
+    const w = CW * cols[i];
+    doc.text(h, x + 8, doc.y + 15, { size: 8, weight: 700, color: MUTED });
+    x += w;
+  });
+  doc.y += 22;
+  if (fusion.rows.length === 0) {
+    doc.text(tr ? "Birleştirilecek satır yok." : "No fusion rows.", MX + 8, doc.y + 14, {
+      size: 9,
+      color: MUTED,
+    });
+    doc.y += 28;
+    return;
+  }
+  for (const row of fusion.rows) {
+    doc.ensure(rowH + 8);
+    x = MX;
+    const cells = [
+      findingLabel(lang, row.problemKey),
+      row.tooth ?? "—",
+      row.xray ? t(lang, "report.present") : t(lang, "report.absent"),
+      row.intraoral ? t(lang, "report.present") : t(lang, "report.absent"),
+      t(lang, `report.${row.resultKey}`),
+    ];
+    cells.forEach((cell, i) => {
+      const w = CW * cols[i];
+      doc.text(cell, x + 8, doc.y + 15, { size: 8.5, weight: i === 0 || i === 4 ? 700 : 500 });
+      x += w;
+    });
+    doc.y += rowH;
+    doc.ctx.strokeStyle = LINE;
+    doc.ctx.lineWidth = 1;
+    doc.ctx.beginPath();
+    doc.ctx.moveTo(MX, doc.y);
+    doc.ctx.lineTo(MX + CW, doc.y);
+    doc.ctx.stroke();
+  }
+  doc.y += 14;
 }
 
 // ---------------------------------------------------------------------------

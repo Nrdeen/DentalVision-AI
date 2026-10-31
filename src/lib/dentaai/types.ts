@@ -55,8 +55,10 @@ export interface Finding {
   key: FindingKey;
   confidence: number;
   tooth: string;
-  // FDI numbers estimated from arch geometry (not model output); see tooth-numbering.ts.
+  // Confirmed FDI lives in `tooth`. Geometric fallback lives in `toothEst` and is shown as ≈.
   toothEst?: string[];
+  toothSource?: "model" | "estimated" | "clinician";
+  quadrant?: 1 | 2 | 3 | 4;
   positionKey: string;
   severity: Severity;
   descriptionKey: string;
@@ -118,11 +120,17 @@ export interface ImageAdjust {
 export interface FusionRow {
   problem: string;
   problemKey: string;
+  tooth: string | null;
   xray: boolean;
   intraoral: boolean;
-  resultKey: "strong" | "deep" | "surface";
-  level: "shared" | "xray_only" | "intra_only";
+  resultKey: "aligned" | "tentative" | "quadrant_match" | "xray_only" | "intra_only" | "unlinkable";
+  level: "shared" | "xray_only" | "intra_only" | "unlinkable";
 }
+
+export type IntraoralToothScope =
+  | { kind: "tooth"; fdi: string }
+  | { kind: "quadrant"; quadrant: 1 | 2 | 3 | 4 }
+  | null;
 
 /** Modality counts count boxes; sharedCount counts normalized classes present in both. */
 export interface FusionResult {

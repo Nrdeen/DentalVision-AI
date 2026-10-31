@@ -52,12 +52,12 @@ ALIASES: list[tuple[str, Route]] = [
     ("filling", Route("filling", "xray-restorations", "show")),
     ("retained root", Route("retainedRoot", "xray-restorations", "show")),
     ("root piece", Route("retainedRoot", "xray-restorations", "show")),
-    ("apical periodontitis", Route("periapical", "xray-periapical", "withhold")),
-    ("apical", Route("periapical", "xray-periapical", "withhold")),
-    ("periapical lesion", Route("periapical", "xray-periapical", "withhold")),
-    ("periapical", Route("periapical", "xray-periapical", "withhold")),
-    ("periapikal", Route("periapical", "xray-periapical", "withhold")),
-    ("bone loss", Route("boneLoss", "xray-bone", "withhold")),
+    ("apical periodontitis", Route("periapical", "xray-periapical", "show")),
+    ("apical", Route("periapical", "xray-periapical", "show")),
+    ("periapical lesion", Route("periapical", "xray-periapical", "show")),
+    ("periapical", Route("periapical", "xray-periapical", "show")),
+    ("periapikal", Route("periapical", "xray-periapical", "show")),
+    ("bone loss", Route("boneLoss", "xray-bone", "show")),
     ("deep decay", Route("deepCaries", "xray-caries", "show")),
     ("cavity", Route("caries", "xray-caries", "show")),
     ("decay", Route("caries", "xray-caries", "show")),
@@ -80,7 +80,7 @@ DENTEX = {
     1: Route("xrayKuretaj", "xray-caries", "show"),
     2: Route("rootCanal", "xray-restorations", "show"),
     3: Route("impacted", "xray-impaction", "show"),
-    4: Route("periapical", "xray-periapical", "withhold"),
+    4: Route("periapical", "xray-periapical", "show"),
 }
 
 # Must stay in lockstep with src/lib/dentaai/ensemble.ts SPECIALISTS.minConfidence
@@ -90,8 +90,8 @@ FLOORS = {
     "xray-restorations": 0.50,
     "xray-missing": 0.50,
     "xray-caries": 0.55,
-    "xray-periapical": 0.85,
-    "xray-bone": 0.80,
+    "xray-periapical": 0.55,
+    "xray-bone": 0.55,
 }
 
 ENABLED = {

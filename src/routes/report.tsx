@@ -1,16 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  AlertTriangle,
   Brain,
   CheckCircle2,
   Download,
   FileText,
-  Images,
   Info,
   Lightbulb,
-  Link2,
 } from "lucide-react";
-import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { MiniFinding } from "@/components/analysis/finding-cards";
 import { FindingOverlay } from "@/components/analysis/finding-overlay";
@@ -78,44 +74,27 @@ function ReportPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start gap-3">
-        <span className="flex size-12 items-center justify-center rounded-2xl bg-accent text-primary">
-          <FileText className="size-6" />
-        </span>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t(lang, "report.title")}</h1>
-          <p className="text-sm text-muted-foreground">{t(lang, "report.subtitle")}</p>
-        </div>
+      <div>
+        <h1 className="text-xl font-semibold">{t(lang, "report.title")}</h1>
+        <p className="text-sm text-muted-foreground">{t(lang, "report.subtitle")}</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <SummaryStat
-          icon={<Images className="size-5" />}
-          label={t(lang, "report.xrayCard")}
-          value={fusion.xrayCount}
-          hint={t(lang, "report.issues")}
-          tone="primary"
-        />
-        <SummaryStat
-          icon={<FileText className="size-5" />}
-          label={t(lang, "report.intraCard")}
-          value={fusion.intraCount}
-          hint={t(lang, "report.issues")}
-          tone="low"
-        />
-        <SummaryStat
-          icon={<Link2 className="size-5" />}
-          label={t(lang, "report.sharedCard")}
-          value={fusion.sharedCount}
-          hint={t(lang, "report.sharedHint")}
-          tone="finding-gingivitis"
-        />
-        <div className="card-surface rounded-2xl p-4">
-          <p className="text-xs text-muted-foreground">{t(lang, "report.overallCard")}</p>
-          <p className="mt-2 text-xl font-semibold text-medium">{overall}</p>
-          <Badge variant="medium" className="mt-2">
-            {note}
-          </Badge>
+      <div className="kp">
+        <div>
+          <b>{fusion.xrayCount}</b>
+          <span>{t(lang, "report.xrayCard")}</span>
+        </div>
+        <div>
+          <b>{fusion.intraCount}</b>
+          <span>{t(lang, "report.intraCard")}</span>
+        </div>
+        <div>
+          <b>{fusion.sharedCount}</b>
+          <span>{t(lang, "report.sharedCard")}</span>
+        </div>
+        <div>
+          <b>{overall}</b>
+          <span>{note}</span>
         </div>
       </div>
 
@@ -185,15 +164,17 @@ function ReportPage() {
                 <thead className="bg-muted text-left text-xs text-muted-foreground">
                   <tr>
                     <th className="px-4 py-2 font-medium">{t(lang, "report.colProblem")}</th>
+                    <th className="px-4 py-2 font-medium">{t(lang, "report.colTooth")}</th>
                     <th className="px-4 py-2 font-medium">{t(lang, "report.colXray")}</th>
                     <th className="px-4 py-2 font-medium">{t(lang, "report.colIntra")}</th>
                     <th className="px-4 py-2 font-medium">{t(lang, "report.colResult")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {fusion.rows.map((row) => (
-                    <tr key={row.problem} className="border-t border-border">
+                  {fusion.rows.map((row, i) => (
+                    <tr key={`${row.problem}-${row.tooth ?? "none"}-${i}`} className="border-t border-border">
                       <td className="px-4 py-3 font-medium">{findingLabel(lang, row.problemKey)}</td>
+                      <td className="px-4 py-3 tabular-nums text-muted-foreground">{row.tooth ?? "—"}</td>
                       <td className="px-4 py-3">
                         <Presence on={row.xray} lang={lang} />
                       </td>
@@ -204,18 +185,14 @@ function ReportPage() {
                         <span
                           className={cn(
                             "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
-                            row.level === "shared" && "bg-high-soft text-high",
-                            row.level === "xray_only" && "bg-medium-soft text-medium",
-                            row.level === "intra_only" && "bg-low-soft text-low",
+                            row.resultKey === "aligned" && "bg-high-soft text-high",
+                            (row.resultKey === "tentative" || row.resultKey === "quadrant_match") &&
+                              "bg-medium-soft text-medium",
+                            row.resultKey === "xray_only" && "bg-medium-soft text-medium",
+                            row.resultKey === "intra_only" && "bg-low-soft text-low",
+                            row.resultKey === "unlinkable" && "bg-muted text-muted-foreground",
                           )}
                         >
-                          {row.level === "shared" ? (
-                            <AlertTriangle className="size-3" />
-                          ) : row.level === "xray_only" ? (
-                            <AlertTriangle className="size-3" />
-                          ) : (
-                            <CheckCircle2 className="size-3" />
-                          )}
                           {t(lang, `report.${row.resultKey}`)}
                         </span>
                       </td>
@@ -237,12 +214,18 @@ function ReportPage() {
           </div>
 
           <LogicCard tone="low-soft" title={t(lang, "report.logicShared")} hint={t(lang, "report.logicSharedHint")} ok />
+          <LogicCard tone="accent" title={t(lang, "report.logicQuadrant")} hint={t(lang, "report.logicQuadrantHint")} />
           <LogicCard tone="accent" title={t(lang, "report.logicDeep")} hint={t(lang, "report.logicDeepHint")} />
           <LogicCard
             tone="secondary"
             title={t(lang, "report.logicSurface")}
             hint={t(lang, "report.logicSurfaceHint")}
             purple
+          />
+          <LogicCard
+            tone="secondary"
+            title={t(lang, "report.logicUnlinkable")}
+            hint={t(lang, "report.logicUnlinkableHint")}
           />
 
           <div className="mt-4 rounded-xl bg-muted p-3">
@@ -283,41 +266,6 @@ function ReportPage() {
           </Button>
         </aside>
       )}
-    </div>
-  );
-}
-
-function SummaryStat({
-  icon,
-  label,
-  value,
-  hint,
-  tone,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: number;
-  hint: string;
-  tone: string;
-}) {
-  return (
-    <div className="card-surface rounded-2xl p-4">
-      <div className="flex items-center gap-3">
-        <span
-          className="flex size-10 items-center justify-center rounded-xl"
-          style={{
-            background: `color-mix(in oklab, var(--color-${tone}) 14%, white)`,
-            color: `var(--color-${tone})`,
-          }}
-        >
-          {icon}
-        </span>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-2xl font-semibold tabular-nums">{value}</p>
-          <p className="text-xs text-muted-foreground">{hint}</p>
-        </div>
-      </div>
     </div>
   );
 }

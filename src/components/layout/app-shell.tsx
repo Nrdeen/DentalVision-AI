@@ -23,16 +23,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   const workspace = pathname === "/xray" || pathname === "/intraoral";
 
   return (
-    <div className={cn("dx-app", theme)}>
+    <div className={cn("dx-app", theme)} data-theme={theme}>
       <header className="dx-hdr">
-        <BrandLockup subtitle={t(lang, "brand.subtitle")} />
+        <BrandLockup />
         <nav className="dx-nav" aria-label={t(lang, "nav.home")}>
           {NAV.map((item) => {
             const active = pathname === item.to;
             const Icon = item.icon;
             return (
               <Link key={item.to} to={item.to} className={cn("dx-nv", active && "on")} aria-current={active ? "page" : undefined}>
-                <Icon className="size-[19px]" strokeWidth={1.8} />
+                <Icon className="size-3.5" strokeWidth={1.8} />
                 {t(lang, item.key)}
               </Link>
             );
@@ -41,10 +41,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="dx-grp">
           <div className="dx-seg" role="group" aria-label={lang === "tr" ? "Tema" : "Theme"}>
             <button type="button" className={theme === "light" ? "on" : undefined} aria-pressed={theme === "light"} aria-label={lang === "tr" ? "Açık tema" : "Light theme"} onClick={() => setTheme("light")}>
-              <Sun className="size-5" strokeWidth={1.8} />
+              <Sun className="size-3.5" strokeWidth={1.8} />
             </button>
             <button type="button" className={theme === "dark" ? "on" : undefined} aria-pressed={theme === "dark"} aria-label={lang === "tr" ? "Koyu tema" : "Dark theme"} onClick={() => setTheme("dark")}>
-              <Moon className="size-5" strokeWidth={1.8} />
+              <Moon className="size-3.5" strokeWidth={1.8} />
             </button>
           </div>
           <div className="dx-seg" role="group" aria-label={lang === "tr" ? "Dil" : "Language"}>

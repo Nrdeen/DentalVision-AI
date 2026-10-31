@@ -15,6 +15,7 @@ BOOST_POOR = {
     "xray-implant": 0.04,
     "xray-restorations": 0.10,
     "xray-missing": 0.05,
+    "xray-caries": 0.06,
 }
 BOOST_FAIR = {k: v * 0.5 for k, v in BOOST_POOR.items()}
 

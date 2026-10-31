@@ -1,8 +1,7 @@
-import { CalendarDays, Images, Search } from "lucide-react";
+import { CalendarDays, Images } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { FindingsPanel } from "@/components/analysis/findings-panel";
 import { ImageWorkspace } from "@/components/analysis/image-workspace";
-import { filterByQuery } from "@/components/layout/app-shell";
 import { gateFindings } from "@/lib/dentaai/ensemble";
 import { t } from "@/lib/dentaai/i18n";
 import { panoramicCohort } from "@/lib/dentaai/panoramic-age";
@@ -11,8 +10,6 @@ import { qualityBodyKey, qualityTitleKey, shouldShowQualityBanner } from "@/lib/
 
 export function PanoramicPage() {
   const lang = useApp((s) => s.language);
-  const query = useApp((s) => s.query);
-  const setQuery = useApp((s) => s.setQuery);
   const image = useApp((s) => s.xrayImage);
   const findings = useApp((s) => s.xrayFindings);
   const quality = useApp((s) => s.xrayQuality);
@@ -25,7 +22,7 @@ export function PanoramicPage() {
   const patientAge = useApp((s) => s.patientAge);
   const setPatientAge = useApp((s) => s.setPatientAge);
   const cohort = panoramicCohort(patientAge);
-  const gated = gateFindings(filterByQuery(findings, query, lang), threshold);
+  const gated = gateFindings(findings, threshold);
   const visible = cohort === "adult" ? gated.visible : [];
   const analyzedImageRef = useRef<string | null>(null);
   const examDate = useMemo(
@@ -69,7 +66,7 @@ export function PanoramicPage() {
         ) : null}
         <div className="dx-case">
           <div className="dx-chip strong">
-            <Images className="size-[19px]" style={{ color: "var(--acct)" }} strokeWidth={1.8} />
+            <Images className="size-4" style={{ color: "var(--acct)" }} strokeWidth={1.8} />
             {t(lang, "xray.ws.modality")}
           </div>
           <label className="dx-chip">
@@ -95,7 +92,7 @@ export function PanoramicPage() {
             />
           </label>
           <div className="dx-chip">
-            <CalendarDays className="size-[19px]" strokeWidth={1.8} />
+            <CalendarDays className="size-4" strokeWidth={1.8} />
             {examDate}
           </div>
         </div>
@@ -119,16 +116,6 @@ export function PanoramicPage() {
         </p>
       </div>
       <aside className="dx-right">
-        <label className="dx-search">
-          <Search className="size-5" strokeWidth={1.8} aria-hidden="true" />
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t(lang, "xray.ws.search")}
-            aria-label={t(lang, "xray.ws.search")}
-          />
-        </label>
         <FindingsPanel
           modality="xray"
           variant="workstation"

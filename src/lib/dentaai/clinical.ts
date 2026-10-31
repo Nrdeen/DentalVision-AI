@@ -63,6 +63,10 @@ const APPROACH: Partial<Record<FindingKey, Text>> = {
     en: "Assess the edentulous span for replacement (implant, bridge or removable).",
     tr: "Dişsiz aralığı implanta, köprüye veya hareketli proteze uygunluk açısından değerlendirin.",
   },
+  boneLoss: {
+    en: "Periodontal charting and comparison with previous films; do not grade severity from a panoramic box alone.",
+    tr: "Periodontal chart ve eski filmlerle karşılaştırma; şiddeti yalnızca panoramik kutudan derecelendirmeyin.",
+  },
   plaque: {
     en: "Oral hygiene instruction and professional scaling.",
     tr: "Ağız hijyeni eğitimi ve profesyonel detartraj.",

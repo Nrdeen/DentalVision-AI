@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { ToothMark } from "@/components/layout/logo";
 import { Badge } from "@/components/ui/badge";
 import { ConfidenceRing } from "@/components/analysis/confidence-ring";
@@ -18,10 +19,8 @@ export function FindingCards({ findings, showTooth = true }: { findings: Finding
           type="button"
           key={f.id}
           onClick={() => setSelected(selected === f.id ? null : f.id)}
-          className={cn(
-            "card-surface rounded-2xl p-4 text-left transition-shadow",
-            selected === f.id && "ring-2 ring-primary/30",
-          )}
+          className={cn("rc w-full", selected === f.id && "on")}
+          style={{ "--k": `var(${f.colorVar})` } as CSSProperties}
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">

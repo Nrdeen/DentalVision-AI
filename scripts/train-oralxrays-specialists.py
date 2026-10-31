@@ -1,18 +1,22 @@
-"""Train OralXrays-9 specialists that have a published 90+ mAP50.
+"""Train OralXrays-9 specialists.
 
-Default queue: implant -> restorations -> missing -> impaction.
-Decay and apical periodontitis are skipped unless --include-weak.
+Caries uses the high-res tile launcher, not this 640/nano path:
+    python scripts/prepare-caries-hires.py
+    python scripts/train-caries-hires.py
+
+Default remaining queue here: periapical (after caries-hires).
+Do not enable a class in the product until YOUR val mAP50 >= 90.
 
 This script starts GPU/CPU training as soon as it is invoked. Do not run it
 until the user explicitly asks to start training.
 
-    python scripts/train-oralxrays-specialists.py
-    python scripts/train-oralxrays-specialists.py --only implant
+    python scripts/train-oralxrays-specialists.py --only periapical
 """
 
 from __future__ import annotations
 
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 
@@ -21,14 +25,13 @@ SPEC_ROOT = ROOT / "data" / "xray" / "specialists" / "oralxrays"
 WEIGHT_DIR = ROOT / "models" / "xray" / "specialists"
 
 QUEUE = (
+    ("periapical", "periapical.yaml"),
+)
+ALREADY_TRAINED = (
     ("implant", "implant.yaml"),
     ("restorations", "restorations.yaml"),
     ("missing", "missing.yaml"),
     ("impaction", "impaction.yaml"),
-)
-WEAK = (
-    ("caries", "caries.yaml"),
-    ("periapical", "periapical.yaml"),
 )
 
 
@@ -155,24 +158,32 @@ def main() -> int:
     ap.add_argument("--patience", type=int, default=15)
     ap.add_argument("--only", default="", help="comma-separated specialist ids")
     ap.add_argument(
-        "--include-weak",
+        "--include-trained",
         action="store_true",
-        help="also train Decay and Apical Periodontitis (published mAP50 < 90)",
+        help="also re-train implant / restorations / missing / impaction",
     )
     args = ap.parse_args()
 
+    wanted = {s.strip() for s in args.only.split(",") if s.strip()} if args.only else set()
+    if "caries" in wanted:
+        if wanted == {"caries"}:
+            print("[INFO] caries uses scripts/train-caries-hires.py")
+            return subprocess.call([sys.executable, str(ROOT / "scripts" / "train-caries-hires.py")])
+        print("[INFO] dropping caries from this launcher; run python scripts/train-caries-hires.py")
+        wanted.discard("caries")
+
+    catalog = list(QUEUE) + list(ALREADY_TRAINED)
     queue = list(QUEUE)
-    if args.include_weak:
-        queue.extend(WEAK)
-    if args.only:
-        wanted = {s.strip() for s in args.only.split(",") if s.strip()}
-        queue = [item for item in queue if item[0] in wanted]
+    if args.include_trained:
+        queue.extend(ALREADY_TRAINED)
+    if wanted:
+        queue = [item for item in catalog if item[0] in wanted]
         if not queue:
             print(f"[FATAL] --only did not match any specialist: {wanted}")
             return 2
 
     print("[INFO] OralXrays-9 training queue:", ", ".join(s for s, _ in queue))
-    print("[INFO] Decay / apical are withheld from this queue unless --include-weak")
+    print("[INFO] enable a class only after YOUR val mAP50 >= 90")
     for spec, yaml_name in queue:
         code = train_one(
             spec,

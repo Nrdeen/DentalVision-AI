@@ -44,7 +44,7 @@ export function FindingDetails({
   ];
 
   return (
-    <div className="finding-card-in space-y-3 px-3 pb-3 pt-1">
+    <div className="finding-card-in mt-3 space-y-3 border-t border-border pt-3">
       <div className="flex items-center gap-3">
         <ConfidenceRing value={finding.confidence} colorVar={finding.colorVar} size={52} />
         <p className="text-xs text-muted-foreground">{reliabilityLabel(finding.confidence, lang)}</p>

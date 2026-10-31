@@ -15,11 +15,15 @@ import {
 } from "lucide-react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { ClinicFdiChart } from "@/components/analysis/clinic-fdi-chart";
+import { FilmCrops } from "@/components/analysis/film-crops";
+import { FilmRail } from "@/components/analysis/film-rail";
 import { FindingOverlay } from "@/components/analysis/finding-overlay";
 import { Button } from "@/components/ui/button";
 import { t } from "@/lib/dentaai/i18n";
 import { objectContainRect, type ContainRect } from "@/lib/dentaai/image-contain";
 import type { Finding, ImageAdjust, Modality, ViewId } from "@/lib/dentaai/types";
+import { fdiOf } from "@/lib/dentaai/tooth-numbering";
 import { useApp } from "@/lib/dentaai/store";
 import { fileToDataUrl, cn } from "@/lib/utils";
 
@@ -150,9 +154,15 @@ export function ImageWorkspace({
   const dragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const [frame, setFrame] = useState<ContainRect | null>(null);
   const [tooth, setTooth] = useState<number | null>(null);
+  const [panMode, setPanMode] = useState(false);
+  const [tone, setTone] = useState<"c" | "b" | null>(null);
+  const [filterKey, setFilterKey] = useState<string | null>(null);
+  const [comparing, setComparing] = useState(false);
   const views = modality === "xray" ? XRAY_VIEWS : INTRA_VIEWS;
   const workstation = variant === "workstation";
-  const canPan = adjust.zoom > 1;
+  const canPan = panMode && adjust.zoom > 1;
+  const visibleFindings = filterKey ? findings.filter((f) => f.key === filterKey) : findings;
+  const overlayOn = adjust.showOverlay && !comparing;
 
   const measureFrame = useCallback(() => {
     const stage = stageRef.current;
@@ -207,17 +217,82 @@ export function ImageWorkspace({
     dragRef.current = null;
   };
 
+  const selectedFinding = findings.find((f) => f.id === selectedFindingId) ?? null;
+  const selectedTooth = selectedFinding ? fdiOf(selectedFinding) : tooth;
+
+  const clearFocus = () => {
+    setTooth(null);
+    setSelectedFindingId(null);
+    onAdjust({ zoom: 1, panX: 0, panY: 0 });
+  };
+
+  const openFinding = (hit: Finding) => {
+    const n = fdiOf(hit);
+    if (n) setTooth(n);
+    setSelectedFindingId(hit.id);
+    const stage = stageRef.current;
+    if (!stage) return;
+    const [x1, y1, x2, y2] = hit.bbox;
+    const z = Math.max(2.1, adjust.zoom === 1 ? 2.1 : adjust.zoom);
+    onAdjust({
+      zoom: z,
+      panX: -((x1 + x2) / 2 - 0.5) * stage.clientWidth * z,
+      panY: -((y1 + y2) / 2 - 0.5) * stage.clientHeight * z,
+      showOverlay: true,
+    });
+  };
+
+  const focusTooth = (n: number) => {
+    const hit = findings.find((f) => fdiOf(f) === n) ?? null;
+    if (selectedTooth === n) {
+      clearFocus();
+      return;
+    }
+    if (hit) openFinding(hit);
+    else setTooth(n);
+  };
+
   if (workstation && modality === "xray") {
-    const active = views.find((v) => v.id === adjust.view) ?? views[0];
-    const zoomPct = Math.round(adjust.zoom * 100);
-    const pickTooth = (n: number) => setTooth((current) => (current === n ? null : n));
     return (
       <>
         <div className="dx-stage">
-          <ToothStrip teeth={ARCH_UPPER} selected={tooth} onPick={pickTooth} edge="t" label={t(lang, "xray.ws.modality")} />
+          <div className="vh">
+            <div>
+              <h2>{t(lang, "clinic.filmLabel")}</h2>
+              <p>{t(lang, "clinic.uploadHint")}</p>
+            </div>
+            <button type="button" className="up" onClick={() => inputRef.current?.click()}>
+              <Upload />
+              {image ? t(lang, "common.replace") : t(lang, "common.upload")}
+            </button>
+          </div>
+          <FilmRail
+            lang={lang}
+            findings={findings}
+            adjust={adjust}
+            filter={filterKey}
+            panMode={panMode}
+            tone={tone}
+            onTone={setTone}
+            onFilter={(key) => {
+              setFilterKey(key);
+              setSelectedFindingId(null);
+            }}
+            onAdjust={onAdjust}
+            onReset={() => {
+              setTooth(null);
+              setFilterKey(null);
+              setPanMode(false);
+              setTone(null);
+              clearFocus();
+              onReset();
+            }}
+            onPanMode={setPanMode}
+            onCompare={setComparing}
+          />
           <div
             ref={stageRef}
-            className={cn("dx-viewer", canPan && "cursor-grab active:cursor-grabbing")}
+            className={cn("dx-viewer", canPan && "cursor-grab active:cursor-grabbing", panMode && "pn")}
             onWheel={(e) => {
               e.preventDefault();
               const next = Math.min(3, Math.max(1, adjust.zoom + (e.deltaY < 0 ? 0.15 : -0.15)));
@@ -227,6 +302,11 @@ export function ImageWorkspace({
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              void onFile(event.dataTransfer.files[0]);
+            }}
           >
             {image ? (
               <div
@@ -234,6 +314,7 @@ export function ImageWorkspace({
                 style={{
                   transform: `translate(${adjust.panX}px, ${adjust.panY}px) scale(${adjust.zoom})`,
                   transformOrigin: "center center",
+                  transition: "transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1)",
                 }}
               >
                 <img
@@ -247,13 +328,16 @@ export function ImageWorkspace({
                   onLoad={measureFrame}
                 />
                 {toothBand(tooth)}
-                {adjust.showOverlay ? (
+                {overlayOn ? (
                   <FindingOverlay
-                    findings={findings}
+                    findings={visibleFindings}
                     hiddenIds={hiddenFindingIds}
                     lang={lang}
                     selectedId={selectedFindingId}
-                    onSelect={setSelectedFindingId}
+                    onSelect={(id) => {
+                      const hit = visibleFindings.find((f) => f.id === id);
+                      if (hit) openFinding(hit);
+                    }}
                     filmImage={imgRef.current}
                   />
                 ) : null}
@@ -264,66 +348,58 @@ export function ImageWorkspace({
                 <span className="text-sm">{dropLabel}</span>
               </button>
             )}
-            <span className="dx-cr" style={{ top: 10, left: 10, borderTopWidth: 2, borderLeftWidth: 2, borderTopLeftRadius: 8 }} />
-            <span className="dx-cr" style={{ top: 10, right: 10, borderTopWidth: 2, borderRightWidth: 2, borderTopRightRadius: 8 }} />
-            <span className="dx-cr" style={{ bottom: 10, left: 10, borderBottomWidth: 2, borderLeftWidth: 2, borderBottomLeftRadius: 8 }} />
-            <span className="dx-cr" style={{ bottom: 10, right: 10, borderBottomWidth: 2, borderRightWidth: 2, borderBottomRightRadius: 8 }} />
-            <span className="dx-scan" />
-            <span className="dx-hud" style={{ top: 18, left: 18 }}>
-              <span className="dx-dot" />
-              {lang === "tr" ? "YZ tarama" : "AI scan"}
-            </span>
-            <span className="dx-hud" style={{ top: 18, right: 18 }}>
-              {zoomPct}% · {adjust.showOverlay ? "2D" : t(lang, "common.original")}
-            </span>
-            <span className="dx-hud" style={{ bottom: 18, left: 18 }}>{t(lang, active.title)}</span>
+            {analyzing ? <span className="dx-scan" /> : null}
+            {image ? (
+              <>
+                {selectedFinding ? (
+                  <>
+                    <div className="hud">
+                      {t(lang, "clinic.focus", {
+                        n: fdiOf(selectedFinding) ?? "—",
+                        name: t(lang, `findings.${selectedFinding.key}`),
+                      })}
+                    </div>
+                    <button type="button" className="fb" onClick={clearFocus}>
+                      {t(lang, "clinic.showAll")}
+                    </button>
+                  </>
+                ) : null}
+                <div className="vfl">ⓘ {t(lang, "clinic.hudReview")}</div>
+                <div className="vfr">
+                  <span className="rl">
+                    <b>R</b>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                      <circle cx="12" cy="12" r="4" />
+                      <path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" />
+                    </svg>
+                    <b>L</b>
+                  </span>
+                  <span>
+                    {t(lang, "clinic.filmLabel")}
+                    {"  |  "}
+                    {new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date())}
+                  </span>
+                </div>
+              </>
+            ) : null}
             {qualityBadge}
             {overlay}
           </div>
-          <ToothStrip teeth={ARCH_LOWER} selected={tooth} onPick={pickTooth} edge="b" label={t(lang, "xray.ws.modality")} />
-          <div className="dx-cap">
-            <b>{t(lang, active.title)}</b>
-            <span>{t(lang, active.hint)}</span>
-          </div>
-          <div className="dx-tool">
-            <div className="dx-zoom">
-              <button type="button" aria-label={t(lang, "common.zoom")} onClick={() => onAdjust({ zoom: Math.max(1, adjust.zoom - 0.25), ...(adjust.zoom - 0.25 <= 1 ? { panX: 0, panY: 0 } : {}) })}>
-                <Minus />
-              </button>
-              <div className="dx-mono">{zoomPct}%</div>
-              <button type="button" aria-label={t(lang, "common.zoom")} onClick={() => onAdjust({ zoom: Math.min(3, adjust.zoom + 0.25) })}>
-                <Plus />
-              </button>
-            </div>
-            <button type="button" className={cn("dx-btn", adjust.invert && "on")} aria-pressed={adjust.invert} onClick={() => onAdjust({ invert: !adjust.invert })}>
-              <FlipHorizontal className="size-[19px]" />
-              {t(lang, "common.invert")}
-            </button>
-            <label className="dx-sl">
-              <Contrast className="size-[19px]" />
-              {t(lang, "common.contrast")}
-              <input type="range" min={60} max={180} step={5} value={Math.round(adjust.contrast * 100)} onChange={(event) => onAdjust({ contrast: Number(event.target.value) / 100 })} />
-            </label>
-            <label className="dx-sl">
-              <SunMedium className="size-[19px]" />
-              {t(lang, "common.brightness")}
-              <input type="range" min={60} max={160} step={5} value={100 + adjust.brightness} onChange={(event) => onAdjust({ brightness: Number(event.target.value) - 100 })} />
-            </label>
-            <button type="button" className="dx-btn" onClick={() => { setTooth(null); onReset(); }}>
-              <RotateCcw className="size-[19px]" />
-              {t(lang, "common.reset")}
-            </button>
-            <div className="dx-seg dk">
-              <button type="button" className={adjust.showOverlay ? "on" : undefined} style={{ height: 40, borderRadius: 13 }} onClick={() => onAdjust({ showOverlay: true })}>2D</button>
-              <button type="button" className={!adjust.showOverlay ? "on" : undefined} style={{ height: 40, borderRadius: 13 }} onClick={() => onAdjust({ showOverlay: false })}>{t(lang, "common.original")}</button>
-            </div>
-            <button type="button" className="dx-btn dash" onClick={() => inputRef.current?.click()}>
-              <Upload className="size-[19px]" />
-              {image ? t(lang, "common.replace") : t(lang, "common.upload")}
-            </button>
-            <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ""; void onFile(file); }} />
-          </div>
+          <FilmCrops
+            image={image}
+            findings={visibleFindings}
+            lang={lang}
+            selectedTooth={selectedTooth}
+            onPick={focusTooth}
+          />
+          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ""; void onFile(file); }} />
         </div>
+        <ClinicFdiChart
+          findings={findings}
+          lang={lang}
+          selectedTooth={selectedTooth}
+          onPick={focusTooth}
+        />
         <div className="dx-thumbs">
           {views.map((v, index) => (
             <button key={v.id} type="button" className={cn("dx-th", adjust.view === v.id && "on")} aria-pressed={adjust.view === v.id} onClick={() => onAdjust({ view: v.id, showOverlay: true })}>
@@ -421,12 +497,12 @@ export function ImageWorkspace({
     <div
       className={cn(
         "flex h-full min-h-0 flex-col",
-        workstation ? "ws-film overflow-hidden" : "bg-background",
+        "dx-stage overflow-hidden",
       )}
     >
       <div
         className={cn(
-          "flex items-center gap-2 border-b border-border bg-card px-3 py-2 flex-wrap",
+          "rail mb-2 flex flex-wrap items-center gap-2",
         )}
       >
         {leading}
@@ -455,7 +531,7 @@ export function ImageWorkspace({
         ref={stageRef}
         className={cn(
           "relative min-h-0 flex-1 overflow-hidden",
-          workstation ? "ws-stage" : "bg-film",
+          "dx-viewer grow min-h-64 flex-1",
           canPan && "cursor-grab active:cursor-grabbing",
         )}
         onWheel={(e) => {
@@ -630,37 +706,6 @@ export function ImageWorkspace({
   );
 }
 
-function ToothStrip({
-  teeth,
-  selected,
-  onPick,
-  edge,
-  label,
-}: {
-  teeth: number[];
-  selected: number | null;
-  onPick: (n: number) => void;
-  edge: "t" | "b";
-  label: string;
-}) {
-  return (
-    <div className={cn("dx-strip", edge)}>
-      {teeth.map((n, index) => (
-        <button
-          key={n}
-          type="button"
-          className={cn("dx-tt", selected === n && "on")}
-          style={{ top: edge === "t" ? 0 : 4, left: `${archLeft(index).toFixed(2)}%` }}
-          aria-label={`${label} ${n}`}
-          onClick={() => onPick(n)}
-        >
-          {n}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function ToolChip({
   icon,
   label,
@@ -677,8 +722,8 @@ function ToolChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "toolbar-chip inline-flex h-9 items-center gap-1.5 rounded-md bg-card px-2.5 text-xs font-medium text-foreground",
-        active && "ring-1 ring-primary/40",
+        "dx-btn",
+        active && "on",
       )}
     >
       <span className="text-muted-foreground [&_svg]:size-3.5">{icon}</span>

@@ -1,7 +1,7 @@
 """Split OralXrays-9 YOLO into specialist subsets.
 
-90+ queue (train these): implant, restorations, missing, impaction.
-Withheld until your own mAP50 >= 90: caries (Decay), periapical (Apical Periodontitis).
+Next train queue: caries (Decay), periapical (Apical Periodontitis).
+Enable in the product only after your own val mAP50 >= 90.
 
     python scripts/split-oralxrays-specialists.py
 """
@@ -25,8 +25,7 @@ copy_split = _mod.copy_split
 load_names = _mod.load_names
 write_yaml = _mod.write_yaml
 
-TRAINABLE = ("implant", "restorations", "missing", "impaction")
-WITHHELD = ("caries", "periapical")
+TRAINABLE = ("caries", "periapical", "implant", "restorations", "missing", "impaction")
 
 
 def main() -> int:
@@ -49,10 +48,9 @@ def main() -> int:
     out_root.mkdir(parents=True, exist_ok=True)
 
     print("[INFO] OralXrays-9 specialist split")
-    print(f"       trainable: {', '.join(TRAINABLE)}")
-    print(f"       withheld (converted, not trained): {', '.join(WITHHELD)}")
+    print(f"       specialists: {', '.join(TRAINABLE)}")
 
-    for spec in (*TRAINABLE, *WITHHELD):
+    for spec in TRAINABLE:
         cfg = SPECIALISTS[spec]
         dest = out_root / spec
         print(f"\n[INFO] specialist={spec} keys={sorted(cfg['keys'])}")

@@ -32,6 +32,7 @@ _MODELS: dict[str, Any] = {}
 _WEIGHTS: Path | None = None
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from caries_hires import TILE, crop_tile, merge_tile_detections, sliding_windows  # noqa: E402
 from xray_clinic_ingest import prepare as prepare_clinic, remap_xyxyn  # noqa: E402
 from xray_taxonomy import SPECIALIST_WEIGHTS, route_class, should_emit  # noqa: E402
 
@@ -128,12 +129,8 @@ def decode_image(image: str) -> Any:
     return np.array(img)
 
 
-def _collect(model: Any, arr: Any, conf: float, source_id: str = "legacy") -> list[dict[str, Any]]:
+def _boxes_from_result(r0: Any, source_id: str, extra: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     detections: list[dict[str, Any]] = []
-    results = model.predict(source=arr, imgsz=640, conf=conf, verbose=False)
-    if not results:
-        return detections
-    r0 = results[0]
     names = r0.names if isinstance(r0.names, dict) else {i: n for i, n in enumerate(r0.names)}
     boxes = r0.boxes
     if boxes is None or len(boxes) == 0:
@@ -149,23 +146,47 @@ def _collect(model: Any, arr: Any, conf: float, source_id: str = "legacy") -> li
         routed = route_class(cls_id, name)
         if source_id != "legacy" and routed.specialist != source_id:
             continue
-        detections.append(
-            {
-                "cls": cls_id,
-                "name": name,
-                "key": routed.key,
-                "specialist": routed.specialist,
-                "policy": routed.policy,
-                "conf": score,
-                "xyxyn": [
-                    max(0.0, min(1.0, x1)),
-                    max(0.0, min(1.0, y1)),
-                    max(0.0, min(1.0, x2)),
-                    max(0.0, min(1.0, y2)),
-                ],
-            }
-        )
+        det = {
+            "cls": cls_id,
+            "name": name,
+            "key": routed.key,
+            "specialist": routed.specialist,
+            "policy": routed.policy,
+            "conf": score,
+            "xyxyn": [
+                max(0.0, min(1.0, x1)),
+                max(0.0, min(1.0, y1)),
+                max(0.0, min(1.0, x2)),
+                max(0.0, min(1.0, y2)),
+            ],
+        }
+        if extra:
+            det.update(extra)
+        detections.append(det)
     return detections
+
+
+def _collect_caries_tiles(model: Any, arr: Any, conf: float, source_id: str) -> list[dict[str, Any]]:
+    h, w = arr.shape[:2]
+    tile_dets: list[dict[str, Any]] = []
+    for x0, y0, side in sliding_windows(w, h, TILE):
+        tile = crop_tile(arr, x0, y0, side)
+        results = model.predict(source=tile, imgsz=TILE, conf=conf, verbose=False)
+        if not results:
+            continue
+        tile_dets.extend(
+            _boxes_from_result(results[0], source_id, extra={"window": (x0, y0, side)})
+        )
+    return merge_tile_detections(tile_dets, w, h)
+
+
+def _collect(model: Any, arr: Any, conf: float, source_id: str = "legacy") -> list[dict[str, Any]]:
+    if source_id == "xray-caries":
+        return _collect_caries_tiles(model, arr, conf, source_id)
+    results = model.predict(source=arr, imgsz=640, conf=conf, verbose=False)
+    if not results:
+        return []
+    return _boxes_from_result(results[0], source_id)
 
 
 def predict(image: str, conf: float = 0.15) -> dict[str, Any]:

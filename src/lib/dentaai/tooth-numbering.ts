@@ -1,11 +1,9 @@
 import type { Finding } from "./types";
 
-// Estimated FDI tooth numbering for panoramic radiographs.
-//
-// The detection model has no tooth-numbering head, so tooth numbers are derived
-// geometrically: the detection's quadrant comes from the midline / occlusal plane,
-// and its position along the arch is matched against average mesiodistal tooth
-// widths. This is an estimate, never model output, and is always shown as "≈".
+// Fallback FDI estimate for panoramic radiographs when the 32-class tooth
+// detector has not produced boxes. Geometry (midline / occlusal / average
+// mesiodistal widths) is wrong when teeth are missing, crowded, or impacted.
+// Always shown as "≈" and never counted as fusion "aligned".
 
 type Box = [number, number, number, number];
 
@@ -92,9 +90,10 @@ export function estimateSingleFdiTooth(bbox: Box): string {
 }
 
 export function withSingleEstimatedTeeth(findings: Finding[]): Finding[] {
-  return findings.map((f) =>
-    f.tooth !== "-" || f.toothEst?.length ? f : { ...f, toothEst: [estimateSingleFdiTooth(f.bbox)] },
-  );
+  return findings.map((f) => {
+    if (f.tooth !== "-" || f.toothEst?.length) return f;
+    return { ...f, toothEst: [estimateSingleFdiTooth(f.bbox)], toothSource: "estimated" as const };
+  });
 }
 
 export function withEstimatedTeeth(findings: Finding[]): Finding[] {
@@ -107,6 +106,13 @@ export function withEstimatedTeeth(findings: Finding[]): Finding[] {
 export function toothDisplay(f: Pick<Finding, "tooth" | "toothEst">): string | null {
   if (f.tooth !== "-") return f.tooth;
   return f.toothEst?.length ? `≈${f.toothEst.join(", ")}` : null;
+}
+
+export function fdiOf(f: Pick<Finding, "tooth" | "toothEst">): number | null {
+  const match = toothDisplay(f)?.match(/\d{2}/);
+  if (!match) return null;
+  const n = Number(match[0]);
+  return n >= 11 && n <= 48 ? n : null;
 }
 
 export function isToothEstimated(f: Pick<Finding, "tooth" | "toothEst">): boolean {
